@@ -32,12 +32,7 @@ class GeminiService:
             AIAuditor.log_operation(model_name, feature, field_id, "v1_plant_scan", latency, True)
             return fallback
 
-        cls._initialize()
-        try:
-            model = genai.GenerativeModel(model_name)
-            img_data = {"mime_type": mime_type or "image/jpeg", "data": image_bytes}
-            
-            prompt = f"""You are a plant pathology and crop diagnostic vision system. Analyze this plant leaf/crop image.
+        prompt = f"""You are a plant pathology and crop diagnostic vision system. Analyze this plant leaf/crop image.
 Context details provided by farmer:
 - Crop type: {crop}
 - Field: {field_id}
@@ -62,6 +57,59 @@ Strict rules:
 2. Be conservative. Do not claim absolute certainty.
 3. If the image is not a plant or leaf, indicate 'Unrecognized Image' in the diagnosis field with low confidence.
 """
+
+        if settings.OPENROUTER_API_KEY:
+            try:
+                import requests
+                import base64
+                img_b64 = base64.b64encode(image_bytes).decode("utf-8")
+                url = "https://openrouter.ai/api/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "model": "nvidia/nemotron-nano-12b-v2-vl:free",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:{mime_type or 'image/jpeg'};base64,{img_b64}"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+                response = requests.post(url, headers=headers, json=data, timeout=30)
+                if response.status_code == 200:
+                    resp_json = response.json()
+                    content = resp_json["choices"][0]["message"]["content"].strip()
+                    if content.startswith("```json"):
+                        content = content[7:]
+                    if content.endswith("```"):
+                        content = content[:-3]
+                    content = content.strip()
+                    res_dict = json.loads(content)
+                    res_dict["source"] = "openrouter"
+                    res_dict["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    latency = (time.time() - start_time) * 1000
+                    AIAuditor.log_operation("nvidia/nemotron-nano-12b-v2-vl:free", feature, field_id, "v1_plant_scan", latency, True)
+                    return res_dict
+                else:
+                    logger.error(f"OpenRouter response failed with status {response.status_code}: {response.text}")
+            except Exception as ex:
+                logger.error(f"OpenRouter plant vision call failed: {ex}")
+
+        cls._initialize()
+        try:
+            model = genai.GenerativeModel(model_name)
+            img_data = {"mime_type": mime_type or "image/jpeg", "data": image_bytes}
+            
             response = model.generate_content(
                 [img_data, prompt],
                 generation_config={"response_mime_type": "application/json"}
@@ -95,14 +143,9 @@ Strict rules:
             AIAuditor.log_operation(model_name, feature, "Unknown", "v1_soil_scan", latency, True)
             return fallback
 
-        cls._initialize()
-        try:
-            model = genai.GenerativeModel(model_name)
-            img_data = {"mime_type": mime_type or "image/jpeg", "data": image_bytes}
-            
-            prompt = """You are a soil conservation and agronomic soil visual inspection assistant. Analyze this soil image.
+        prompt = """You are a soil conservation and agronomic soil visual inspection assistant. Analyze this soil image.
 You must return a JSON object conforming exactly to this structure:
-{{
+{
   "soil_condition": "description of visible soil texture, moisture, structure, and type",
   "degradation_indicators": ["list of visible signs of erosion, salinity, scaling, or cracking"],
   "compaction_indicators": ["list of indicators showing potential soil compaction or lack of aeration"],
@@ -111,13 +154,66 @@ You must return a JSON object conforming exactly to this structure:
   "recommended_tests": ["list of recommended wet-lab soil chemical/biological tests"],
   "regenerative_practices": ["list of soil-building regenerative suggestions like cover cropping, zero-till"],
   "disclaimer": "Visual estimation only. This tool does not replace a wet-lab chemical soil test."
-}}
+}
 
 Strict rules:
 1. Return ONLY the raw JSON block. No markdown wrapper (like ```json), no explaining text.
 2. Clearly distinguish visual estimation from laboratory measurements.
 3. NEVER claim exact nutrient percentages (like 'N is 1.2%') from a photograph.
 """
+
+        if settings.OPENROUTER_API_KEY:
+            try:
+                import requests
+                import base64
+                img_b64 = base64.b64encode(image_bytes).decode("utf-8")
+                url = "https://openrouter.ai/api/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "model": "nvidia/nemotron-nano-12b-v2-vl:free",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:{mime_type or 'image/jpeg'};base64,{img_b64}"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+                response = requests.post(url, headers=headers, json=data, timeout=30)
+                if response.status_code == 200:
+                    resp_json = response.json()
+                    content = resp_json["choices"][0]["message"]["content"].strip()
+                    if content.startswith("```json"):
+                        content = content[7:]
+                    if content.endswith("```"):
+                        content = content[:-3]
+                    content = content.strip()
+                    res_dict = json.loads(content)
+                    res_dict["source"] = "openrouter"
+                    res_dict["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    latency = (time.time() - start_time) * 1000
+                    AIAuditor.log_operation("nvidia/nemotron-nano-12b-v2-vl:free", feature, "Unknown", "v1_soil_scan", latency, True)
+                    return res_dict
+                else:
+                    logger.error(f"OpenRouter response failed with status {response.status_code}: {response.text}")
+            except Exception as ex:
+                logger.error(f"OpenRouter soil vision call failed: {ex}")
+
+        cls._initialize()
+        try:
+            model = genai.GenerativeModel(model_name)
+            img_data = {"mime_type": mime_type or "image/jpeg", "data": image_bytes}
+            
             response = model.generate_content(
                 [img_data, prompt],
                 generation_config={"response_mime_type": "application/json"}

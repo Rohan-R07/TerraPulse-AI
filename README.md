@@ -3,7 +3,7 @@
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=white)](https://react.dev/)
 [![Tailwind & CSS Tokens](https://img.shields.io/badge/Styling-CSS%20Design%20System-06B6D4)](https://developer.mozilla.org/en-US/docs/Web/CSS)
-[![Status](https://img.shields.io/badge/Status-Frontend%20Complete%20%7C%20Backend%20In%20Dev-emerald)](#development-status)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready%20%7C%20Full%20Stack-emerald)](#development-status)
 
 TerraPulse AI is an agricultural intelligence and regenerative farming platform designed to empower farmers, agronomists, land managers, and carbon credit evaluators. By combining satellite land diagnostics, AI-driven plant and soil health analysis, and multi-year carbon sequestration forecasting, TerraPulse AI turns complex environmental data into actionable insights for sustainable land stewardship.
 
@@ -77,33 +77,31 @@ TerraPulse AI provides an intuitive, high-performance platform that unifies real
 ## 🏗️ System Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    TerraPulse AI Frontend                       │
-│  (React 18 + Vite + Recharts + React Router DOM + CSS Tokens)   │
-└────────────────────────────────┬────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                  Frontend Async Service Layer                   │
-│   (dashboardService, farmService, scannerService, simulator)    │
-└────────────────────────────────┬────────────────────────────────┘
-                                 │
-                        [ REST API Contract ]
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     Backend API (In Dev)                        │
-│                (Python FastAPI / Flask Service)                 │
-└────────────────┬────────────────────────────────┬───────────────┘
-                 │                                │
-                 ▼                                ▼
-┌────────────────────────────────┐┌───────────────────────────────┐
-│     AI / ML Inference Models   ││   Satellite Data Adapters     │
-│ (Computer Vision & SOC Engine) ││ (Sentinel-2 / Earth Engine)   │
-└────────────────────────────────┘└───────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│               TerraPulse AI Web Client                 │
+│      (React + Vite + Recharts + Lucide Icons)          │
+└───────────────┬───────────────────────────▲────────────┘
+                │                           │
+           HTTP Requests              WebSocket/Stream
+                │                           │
+                ▼                           │
+┌───────────────────────────────────────────┴────────────┐
+│              FastAPI Application Server                │
+│    (Uvicorn + Pydantic Settings + Custom CORS)         │
+└───────────────┬────────────────────────────────────────┘
+                │
+        ┌───────┼───────────────┬──────────────┐
+        ▼       ▼               ▼              ▼
+┌───────────┐┌─────────────┐┌──────────────┐┌───────────┐
+│  Gemini   ││ OpenRouter  ││ Earth Engine ││ Firestore │
+│  Service  ││ API Service ││  Satellite   ││ Database  │
+│ (Advisory)││  (Scanner)  ││  Telemetry   ││  Storage  │
+└───────────┘└─────────────┘└──────────────┘└───────────┘
 ```
 
-> **Note on Architecture:** The frontend is fully decoupled using a clean service abstraction layer (`Frontend/src/services/api.js`). Currently, mock data handlers simulate asynchronous latency. Connecting to the Python backend requires only updating API endpoint URLs without touching UI component code.
+> **Note on Architecture:** The application operates in dual-mode (Toggleable between **DEMO** and **LIVE** mode from the Topbar). 
+> - **DEMO Mode:** Front-end queries intercept requests to return high-fidelity local datasets instantly.
+> - **LIVE Mode:** Requests route to the production FastAPI backend. The backend uses OpenRouter (Gemma / Nemotron VL free-tier models) for image scans and the official Google Gemini SDK for advisory diagnostics, falling back to mock schemas gracefully on API failures.
 
 ---
 
@@ -115,12 +113,15 @@ TerraPulse AI provides an intuitive, high-performance platform that unifies real
 - **Routing:** [React Router DOM v7](https://reactrouter.com/)
 - **Data Visualization:** [Recharts 3](https://recharts.org/)
 - **Iconography:** [Lucide React](https://lucide.dev/)
-- **Styling:** Vanilla CSS with custom design tokens, bold 2.5px graphic black outline design system, fresh organic green accent palette, pill controls, responsive CSS grid/flex layouts, and modern typography.
+- **Styling:** Vanilla CSS design tokens with organic green accents, pill selectors, custom interactive badges, and clean layouts.
 
-### Backend *(In Progress)*
-- **Language:** Python 3.10+
-- **Location:** `Backend/main.py` & `Backend/requirements.txt`
-- **Target Framework:** FastAPI / Flask for serving ML models and satellite proxies.
+### Backend
+- **Framework:** [FastAPI](https://fastapi.tiangolo.com/) (Python 3.10+)
+- **WSGI/ASGI Server:** [Uvicorn](https://www.uvicorn.org/)
+- **AI Integrations:** Official `google-generativeai` SDK (Gemini) & [OpenRouter API](https://openrouter.ai/) (`google/gemma-4-26b-a4b-it:free` and `nvidia/nemotron-nano-12b-v2-vl:free` vision model).
+- **Environment Management:** `Pydantic-Settings` for secure, type-safe config loading.
+- **Database / Cache Adapters:** Firestore & Local fallback engines.
+- **Testing:** Complete `pytest` suite covering carbon calculations, telemetry aggregation, and risk analysis.
 
 ---
 
@@ -253,12 +254,12 @@ VITE_ENABLE_MOCK_SERVICES=true
 | **Landing Page** | ✅ **Completed** | Feature showcase, problem statement, CTA navigation |
 | **Executive Dashboard** | ✅ **Completed** | Interactive metric summaries, Recharts graphs, field switcher |
 | **Farm Health Satellite View** | ✅ **Completed** | Dual-layer NDVI / Soil Moisture map toggle & satellite provider selector |
-| **AI Disease & Soil Scanner** | ✅ **Completed** | Interactive upload & diagnostic workflow for plant and soil scans |
+| **AI Disease & Soil Scanner** | ✅ **Completed** | Interactive upload & diagnostic workflow powered by OpenRouter free-tier vision model (`nemotron-nano-vl`) |
 | **Carbon Simulator** | ✅ **Completed** | 3-year crop rotation builder with 5-year SOC & carbon credit math engine |
-| **Service Layer Abstraction** | ✅ **Completed** | Asynchronous service contracts (`api.js`) ready for REST integration |
-| **Backend REST API** | 🔄 **In Progress** | Python service scaffolding in `Backend/main.py` |
-| **Live Satellite API Integration** | ⏳ **Planned** | Google Earth Engine / Copernicus Sentinel-2 live pipeline integration |
-| **ML Inference Engine** | ⏳ **Planned** | Fine-tuned PyTorch CNN models for plant pathology detection |
+| **Service Layer Abstraction** | ✅ **Completed** | Asynchronous service contracts (`api.js`) fully integrated with the FastAPI backend |
+| **Backend REST API** | ✅ **Completed** | High-performance FastAPI server with 11 router endpoints, integrated config loaders, and schema validation |
+| **Live Satellite Proxy** | ✅ **Completed** | Earth Engine Service telemetry computation and simulation for all registered farm fields |
+| **AI Advisory & Copilot** | ✅ **Completed** | Gemini-powered local and regional agricultural advice & contextual chat system |
 
 ---
 

@@ -13,6 +13,7 @@ dist-ssr/
 
 # Logs & IDEs
 *.log
+*.jsonl
 npm-debug.log*
 yarn-debug.log*
 .DS_Store
