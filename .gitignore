@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+build/
+dist-ssr/
+
+# Environment files & Secrets
+.env
+.env.*
+!.env.example
+
+# Logs & IDEs
+*.log
+npm-debug.log*
+yarn-debug.log*
+.DS_Store
+.vscode/
+.idea/
+
+# Python Virtual Environments & Caches
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+Backend/venv/
+Backend/__pycache__/
+Backend/.pytest_cache/

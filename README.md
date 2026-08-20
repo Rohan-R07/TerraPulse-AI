@@ -1,0 +1,297 @@
+# TerraPulse AI — Regenerative Agriculture & Carbon Intelligence Platform
+
+[![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![Tailwind & CSS Tokens](https://img.shields.io/badge/Styling-CSS%20Design%20System-06B6D4)](https://developer.mozilla.org/en-US/docs/Web/CSS)
+[![Status](https://img.shields.io/badge/Status-Frontend%20Complete%20%7C%20Backend%20In%20Dev-emerald)](#development-status)
+
+TerraPulse AI is an agricultural intelligence and regenerative farming platform designed to empower farmers, agronomists, land managers, and carbon credit evaluators. By combining satellite land diagnostics, AI-driven plant and soil health analysis, and multi-year carbon sequestration forecasting, TerraPulse AI turns complex environmental data into actionable insights for sustainable land stewardship.
+
+---
+
+## 📋 Table of Contents
+
+- [Project Overview](#-project-overview)
+- [Key Features](#-key-features)
+- [System Architecture](#-system-architecture)
+- [Technology Stack](#-technology-stack)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+  - [Frontend Setup](#frontend-setup)
+  - [Backend Setup](#backend-setup)
+- [Environment Variables](#-environment-variables)
+- [Development Status](#-development-status)
+- [Future Enhancements](#-future-enhancements)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 🚀 Project Overview
+
+### The Problem
+Global agricultural land faces severe degradation, loss of Soil Organic Carbon (SOC), unpredictable climate risks, and escalating crop disease outbreaks. At the same time, transitioning to regenerative practices (cover cropping, no-till, crop rotation) is often inhibited by a lack of accessible satellite monitoring tools and complex, unverified carbon credit estimation models.
+
+### The Solution
+TerraPulse AI provides an intuitive, high-performance platform that unifies real-time farm health diagnostics and predictive carbon modeling:
+- **Satellite Health Tracking:** Monitor vegetation vigor (NDVI) and soil moisture levels across registered fields.
+- **AI Diagnostics:** Scan plant leaves and soil samples for instant disease detection, severity ratings, and treatment guidance.
+- **Carbon Simulator:** Simulate 3-year crop rotation scenarios to project SOC gains, crop resilience, and estimated voluntary carbon credits over a 5-year timeline.
+
+---
+
+## ✨ Key Features
+
+### 📊 Executive Dashboard
+- **Core Agronomic Metrics:** Real-time visibility into average Soil Organic Carbon (SOC %), NDVI index, soil moisture percentage, and estimated annual carbon credits ($tCO_2e/yr$).
+- **Interactive Field Selector:** Switch between registered farm parcels (e.g., North Valley Field, East Meadow) to inspect localized telemetry.
+- **Trend Charts:** Visual tracking of historical NDVI and moisture trends powered by interactive Recharts line graphs.
+- **Disease & Advisory Feed:** Instant alerts on recent field scans and prioritized regenerative recommendations.
+
+### 🛰️ Farm Health & Satellite Monitoring
+- **Dual-Layer Map Visualization:** Toggle between Normalized Difference Vegetation Index (NDVI) and Soil Moisture Heatmap visual overlays.
+- **Multi-Satellite Source Selector:** Inspect data resolution across Sentinel-2 (10m), PlanetScope (3m), and Landsat-9 (30m) providers.
+- **Agronomic Action Plans:** Field-specific recommendations including cover crop selection (e.g., Crimson Clover, Hairy Vetch) and bio-fertilizers (e.g., Mycorrhizal Inoculants).
+
+### 🔬 AI Plant & Soil Scanner
+- **Dual-Mode Diagnostics:** Dedicated upload & analysis workflows for **Plant Leaf Health** and **Soil Degradation**.
+- **Interactive Scan Workflow:** Step-by-step image upload, simulated neural network analysis, and diagnostic report generation.
+- **Comprehensive Diagnostic Reports:**
+  - Disease/Condition identification with confidence score.
+  - Severity level assessment (e.g., Moderate, Severe).
+  - Symptom breakdown and root cause analysis.
+  - Localized treatment and prevention protocols.
+  - Soil organic matter estimation and nutrient deficiency breakdown.
+
+### 🌱 Regenerative Carbon Simulator
+- **Interactive Crop Rotation Builder:** Configure 3-year crop sequences (e.g., Corn $\rightarrow$ Soybeans $\rightarrow$ Crimson Clover) across custom acreage.
+- **Soil Baseline Selector:** Choose baseline soil types (e.g., Silt Loam, Clay Loam, Sandy Loam) and enter historical yield baselines.
+- **Predictive Engine:**
+  - **Soil Organic Carbon (SOC %)** trajectory over 5 years.
+  - **Climate Resilience Score** improvements.
+  - **Carbon Sequestration Rate** ($tCO_2e/\text{acre}/\text{year}$).
+  - **Annual Carbon Credit Forecast** ($tCO_2e$) for voluntary carbon markets.
+
+---
+
+## 🏗️ System Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    TerraPulse AI Frontend                       │
+│  (React 18 + Vite + Recharts + React Router DOM + CSS Tokens)   │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  Frontend Async Service Layer                   │
+│   (dashboardService, farmService, scannerService, simulator)    │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                        [ REST API Contract ]
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Backend API (In Dev)                        │
+│                (Python FastAPI / Flask Service)                 │
+└────────────────┬────────────────────────────────┬───────────────┘
+                 │                                │
+                 ▼                                ▼
+┌────────────────────────────────┐┌───────────────────────────────┐
+│     AI / ML Inference Models   ││   Satellite Data Adapters     │
+│ (Computer Vision & SOC Engine) ││ (Sentinel-2 / Earth Engine)   │
+└────────────────────────────────┘└───────────────────────────────┘
+```
+
+> **Note on Architecture:** The frontend is fully decoupled using a clean service abstraction layer (`Frontend/src/services/api.js`). Currently, mock data handlers simulate asynchronous latency. Connecting to the Python backend requires only updating API endpoint URLs without touching UI component code.
+
+---
+
+## 🛠️ Technology Stack
+
+### Frontend
+- **Framework:** [React 18](https://react.dev/) (SPA Architecture)
+- **Build Tool:** [Vite 5](https://vitejs.dev/)
+- **Routing:** [React Router DOM v7](https://reactrouter.com/)
+- **Data Visualization:** [Recharts 3](https://recharts.org/)
+- **Iconography:** [Lucide React](https://lucide.dev/)
+- **Styling:** Vanilla CSS with custom design tokens, bold 2.5px graphic black outline design system, fresh organic green accent palette, pill controls, responsive CSS grid/flex layouts, and modern typography.
+
+### Backend *(In Progress)*
+- **Language:** Python 3.10+
+- **Location:** `Backend/main.py` & `Backend/requirements.txt`
+- **Target Framework:** FastAPI / Flask for serving ML models and satellite proxies.
+
+---
+
+## 📁 Project Structure
+
+```text
+TerraPulse-AI/
+├── Backend/                    # Python Backend API & ML Engine (In Development)
+│   ├── main.py                 # Backend service entrypoint
+│   ├── requirements.txt        # Python package dependencies
+│   └── venv/                   # Local Python virtual environment
+│
+├── Frontend/                   # Vite + React Frontend Application
+│   ├── public/                 # Static public assets (favicons, icons)
+│   ├── src/
+│   │   ├── assets/             # Visual assets and SVGs
+│   │   ├── components/         # Reusable UI components (Layout, FarmMap, UI primitives)
+│   │   ├── data/               # Mock agronomic datasets & simulation parameters
+│   │   ├── hooks/              # Custom React state & async execution hooks
+│   │   ├── pages/              # Application views
+│   │   │   ├── Landing.jsx          # Public product landing page
+│   │   │   ├── Dashboard.jsx        # Agronomic telemetry dashboard
+│   │   │   ├── FarmHealth.jsx       # Satellite field health monitoring
+│   │   │   ├── AIScanner.jsx        # Leaf & Soil AI disease scanner
+│   │   │   └── CarbonSimulator.jsx  # Multi-year carbon & yield simulator
+│   │   ├── services/           # Decoupled service layer for API data fetching
+│   │   │   └── api.js          # Async service interfaces (Dashboard, Farm, Scanner, Simulator)
+│   │   ├── styles/             # Modular CSS design system
+│   │   │   ├── tokens.css      # HSL color palettes, typography, spacing tokens
+│   │   │   ├── app.css         # Main application layout styles
+│   │   │   └── landing.css     # Landing page custom animations & styles
+│   │   └── main.jsx            # Application entrypoint & React Router provider
+│   ├── eslint.config.js        # ESLint code hygiene rules
+│   ├── index.html              # HTML DOM container
+│   ├── package.json            # Node.js dependencies & scripts
+│   └── vite.config.js          # Vite build & plugin settings
+│
+├── .gitignore                  # Git untracked path rules
+└── README.md                   # Project documentation
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- **Node.js**: v18.0.0 or higher
+- **npm**: v9.0.0 or higher
+
+### Frontend Setup
+
+1. **Navigate to the Frontend directory:**
+   ```bash
+   cd Frontend
+   ```
+
+2. **Install Node dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Start the local development server:**
+   ```bash
+   npm run dev
+   ```
+   The application will be accessible at `http://localhost:5173`.
+
+4. **Build for production:**
+   ```bash
+   npm run build
+   ```
+   The optimized production bundle will be generated in `Frontend/dist/`.
+
+5. **Preview the production build locally:**
+   ```bash
+   npm run preview
+   ```
+
+---
+
+### Backend Setup *(In Development)*
+
+1. **Navigate to the Backend directory:**
+   ```bash
+   cd Backend
+   ```
+
+2. **Create and activate a Python virtual environment:**
+   - **Windows:**
+     ```bash
+     python -m venv venv
+     .\venv\Scripts\activate
+     ```
+   - **macOS / Linux:**
+     ```bash
+     python3 -m venv venv
+     source venv/bin/activate
+     ```
+
+3. **Install Python packages:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+---
+
+## 🔐 Environment Variables
+
+The frontend service layer supports environment configuration. Create a `.env` file in the `Frontend/` directory based on `.env.example`:
+
+```env
+# Frontend Environment Configuration (.env.example)
+
+# Base URL for Backend REST API
+VITE_API_BASE_URL=http://localhost:8000/api
+
+# Enable mock data fallback when backend service is offline
+VITE_ENABLE_MOCK_SERVICES=true
+```
+
+> **Security Note:** Never commit `.env` or files containing secret API keys, tokens, or credentials to version control.
+
+---
+
+## 📈 Development Status
+
+| Component | Status | Details |
+| :--- | :---: | :--- |
+| **UI/UX & Design System** | ✅ **Completed** | Full responsive graphic design system with bold 2.5px black outlines & fresh organic green accents |
+| **Landing Page** | ✅ **Completed** | Feature showcase, problem statement, CTA navigation |
+| **Executive Dashboard** | ✅ **Completed** | Interactive metric summaries, Recharts graphs, field switcher |
+| **Farm Health Satellite View** | ✅ **Completed** | Dual-layer NDVI / Soil Moisture map toggle & satellite provider selector |
+| **AI Disease & Soil Scanner** | ✅ **Completed** | Interactive upload & diagnostic workflow for plant and soil scans |
+| **Carbon Simulator** | ✅ **Completed** | 3-year crop rotation builder with 5-year SOC & carbon credit math engine |
+| **Service Layer Abstraction** | ✅ **Completed** | Asynchronous service contracts (`api.js`) ready for REST integration |
+| **Backend REST API** | 🔄 **In Progress** | Python service scaffolding in `Backend/main.py` |
+| **Live Satellite API Integration** | ⏳ **Planned** | Google Earth Engine / Copernicus Sentinel-2 live pipeline integration |
+| **ML Inference Engine** | ⏳ **Planned** | Fine-tuned PyTorch CNN models for plant pathology detection |
+
+---
+
+## 🔮 Future Enhancements
+
+- **Live Satellite Data Pipeline:** Integration with Copernicus Sentinel-2 API for automated 5-day NDVI updates.
+- **IoT Telemetry Ingestion:** Support for MQTT soil moisture & temperature sensor streams.
+- **PDF Certification Export:** Exportable carbon sequestration verification reports for voluntary market auditors.
+- **Multilingual Support:** Localized advice in regional agricultural languages.
+
+---
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome!
+
+1. Fork the Repository.
+2. Create a Feature Branch:
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. Commit your changes:
+   ```bash
+   git commit -m "feat: add amazing feature"
+   ```
+4. Push to the Branch:
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+5. Open a Pull Request.
+
+---
+
+## 📄 License
+
+This project is developed for hackathon demonstration and evaluation. Check the repository repository settings for specific license terms.
