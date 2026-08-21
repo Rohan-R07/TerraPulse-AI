@@ -1,7 +1,10 @@
 import * as mock from "../data/mockData.js";
 import { auth } from "./firebase.js";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+    ? "/api/v1" 
+    : "http://localhost:8000/api/v1");
 
 // Helper: safe fetch with fallback to mock data
 async function safeFetch(endpoint, options = {}, fallbackData = null) {
