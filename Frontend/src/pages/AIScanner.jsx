@@ -154,13 +154,6 @@ export default function AIScanner() {
               <div className="tp-upload-title">Drag & drop an image</div>
               <div className="tp-upload-sub">or click to browse from your device</div>
               <div className="tp-upload-formats">JPG · PNG · WEBP · max 8 MB</div>
-              <input
-                ref={fileInput}
-                type="file"
-                accept={ACCEPTED.join(",")}
-                hidden
-                onChange={(e) => handleFile(e.target.files?.[0])}
-              />
             </div>
           ) : (
             <div className="tp-stack" style={{ gap: 14 }}>
@@ -187,6 +180,14 @@ export default function AIScanner() {
               )}
             </div>
           )}
+
+          <input
+            ref={fileInput}
+            type="file"
+            accept={ACCEPTED.join(",")}
+            hidden
+            onChange={(e) => handleFile(e.target.files?.[0])}
+          />
         </Card>
 
         {/* Result / empty state */}

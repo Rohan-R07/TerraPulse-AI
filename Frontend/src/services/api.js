@@ -19,17 +19,17 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
     const url = `${BASE_URL}${endpoint}`;
     const res = await fetch(url, options);
     if (!res.ok) {
-      throw new Error(`API returned status ${res.status}`);
+      const errBody = await res.text();
+      let msg = `API error ${res.status}`;
+      try {
+        const parsed = JSON.parse(errBody);
+        msg = parsed.detail || parsed.error?.message || msg;
+      } catch (_) {}
+      throw new Error(msg);
     }
     return await res.json();
   } catch (err) {
-    console.warn(`Backend API failed for ${endpoint}: ${err.message}. Falling back to mock data.`);
-    if (fallbackData !== null) {
-      if (typeof fallbackData === "function") {
-        return fallbackData();
-      }
-      return fallbackData;
-    }
+    console.warn(`Backend API failed for ${endpoint}: ${err.message}`);
     throw err;
   }
 }
