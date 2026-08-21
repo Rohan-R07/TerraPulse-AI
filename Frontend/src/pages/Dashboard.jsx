@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useAsync } from "../hooks/useAsync.js";
-import { dashboardService } from "../services/api.js";
+import { dashboardService, userService } from "../services/api.js";
+import { useAuth } from "../hooks/useAuth.jsx";
 import {
   Card, CardTitle, Badge, RiskBadge, HealthRing, Spinner, ErrorState,
-  Skeleton, Button,
+  Skeleton, Button, Field, Input
 } from "../components/ui.jsx";
 import {
   LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -24,6 +25,7 @@ const chartTooltipStyle = {
 };
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const overview = useAsync(() => dashboardService.getOverview(), []);
   const fields = useAsync(() => dashboardService.getFields(), []);
   const ndvi = useAsync(() => dashboardService.getNdviHistory(), []);
@@ -31,8 +33,18 @@ export default function Dashboard() {
   const scans = useAsync(() => dashboardService.getRecentScans(), []);
   const recs = useAsync(() => dashboardService.getRecommendations(), []);
   const carbon = useAsync(() => dashboardService.getCarbonMetrics(), []);
+  const profile = useAsync(() => userService.getProfile(), [user]);
 
   const [selectedRec, setSelectedRec] = useState(null);
+  
+  // Profile edit states
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editFarmName, setEditFarmName] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editAcreage, setEditAcreage] = useState(30);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [modalError, setModalError] = useState("");
+  const [saveLoading, setSaveLoading] = useState(false);
 
   // Set default selected recommendation when loaded
   useEffect(() => {
@@ -41,13 +53,43 @@ export default function Dashboard() {
     }
   }, [recs.data]);
 
-  const anyError = [overview, fields, ndvi, moisture, scans, recs, carbon].find((q) => q.error);
+  // Populate edit fields when profile data loads
+  useEffect(() => {
+    if (profile.data) {
+      setEditFarmName(profile.data.farmName || "Green Valley Farm");
+      setEditLocation(profile.data.location || "Pune, Maharashtra");
+      setEditAcreage(profile.data.acreage || 30);
+      setEditDisplayName(profile.data.displayName || user?.displayName || "Farmer");
+    }
+  }, [profile.data, user]);
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    setModalError("");
+    setSaveLoading(true);
+    try {
+      await userService.updateProfile({
+        farmName: editFarmName,
+        location: editLocation,
+        acreage: editAcreage,
+        displayName: editDisplayName
+      });
+      await profile.refetch();
+      setIsEditOpen(false);
+    } catch (err) {
+      setModalError(err.message || "Failed to update profile");
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const anyError = [overview, fields, ndvi, moisture, scans, recs, carbon, profile].find((q) => q.error);
 
   return (
     <div>
       <div className="tp-page-head">
         <h1>Dashboard</h1>
-        <p>Real-time overview of Green Valley Farm health, scans, and carbon metrics.</p>
+        <p>Real-time overview of {profile.data?.farmName || "Green Valley Farm"} health, scans, and carbon metrics.</p>
       </div>
 
       {anyError && (
@@ -57,7 +99,7 @@ export default function Dashboard() {
       )}
 
       {/* Top row: health + stats */}
-      <div className="tp-grid tp-grid-4" style={{ marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: 20 }}>
         <Card>
           {overview.loading ? (
             <div style={{ display: "flex", justifyContent: "center", padding: 16 }}><Spinner /></div>
@@ -76,6 +118,38 @@ export default function Dashboard() {
                   ▲ {overview.data.healthTrend || 4}% this month
                 </span>
               </div>
+            </div>
+          ) : <Skeleton h={120} />}
+        </Card>
+
+        <Card style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          {profile.loading ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: 16 }}><Spinner /></div>
+          ) : profile.data ? (
+            <div style={{ display: "flex", flexDirection: "column", height: "100%", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", width: "100%" }}>
+                  <CardTitle icon={Sprout}>Farm Ledger</CardTitle>
+                  <Badge variant="neutral">MongoDB Sync</Badge>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontSize: "1.05rem", fontWeight: 800 }}>{profile.data.farmName || "Green Valley Farm"}</div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--tp-neutral-500)", fontWeight: 600 }}>{profile.data.location || "Pune, Maharashtra"}</div>
+                  <div style={{ fontSize: "0.75rem", marginTop: 4, display: "flex", gap: 6, color: "var(--tp-neutral-600)" }}>
+                    <span><strong>Acreage:</strong> {profile.data.acreage || 30} ac</span>
+                    <span>•</span>
+                    <span><strong>User:</strong> {profile.data.displayName || "Farmer"}</span>
+                  </div>
+                </div>
+              </div>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => setIsEditOpen(true)}
+                style={{ marginTop: 10, width: "fit-content", padding: "4px 10px", height: 28, fontSize: "0.72rem" }}
+              >
+                Edit Profile
+              </Button>
             </div>
           ) : <Skeleton h={120} />}
         </Card>
@@ -326,6 +400,74 @@ export default function Dashboard() {
           ) : null}
         </Card>
       </div>
+      {/* Edit Profile Modal */}
+      {isEditOpen && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(17, 24, 39, 0.4)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 100,
+          padding: 20
+        }}>
+          <div style={{ width: "100%", maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+            <Card>
+              <CardTitle icon={Sprout}>Edit Farm Details</CardTitle>
+              <form onSubmit={handleProfileSubmit} style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 12 }}>
+                <Field label="Farm Name" required>
+                  <Input 
+                    type="text" 
+                    value={editFarmName} 
+                    onChange={(e) => setEditFarmName(e.target.value)} 
+                    required 
+                  />
+                </Field>
+                <Field label="Location" required>
+                  <Input 
+                    type="text" 
+                    value={editLocation} 
+                    onChange={(e) => setEditLocation(e.target.value)} 
+                    required 
+                  />
+                </Field>
+                <Field label="Acreage (Acres)" required>
+                  <Input 
+                    type="number" 
+                    value={editAcreage} 
+                    onChange={(e) => setEditAcreage(e.target.value)} 
+                    required 
+                  />
+                </Field>
+                <Field label="Farmer Display Name" required>
+                  <Input 
+                    type="text" 
+                    value={editDisplayName} 
+                    onChange={(e) => setEditDisplayName(e.target.value)} 
+                    required 
+                  />
+                </Field>
+
+                {modalError && (
+                  <div className="tp-error-text" style={{ fontSize: "0.8rem", fontWeight: 600 }}>
+                    {modalError}
+                  </div>
+                )}
+
+                <div className="tp-row" style={{ justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
+                  <Button variant="secondary" type="button" onClick={() => setIsEditOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button variant="primary" type="submit" disabled={saveLoading}>
+                    {saveLoading ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

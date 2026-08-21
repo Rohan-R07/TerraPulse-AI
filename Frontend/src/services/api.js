@@ -1,7 +1,5 @@
-// Service layer for TerraPulse AI.
-// Connects to Python FastAPI backend with local mock fallback.
-
 import * as mock from "../data/mockData.js";
+import { auth } from "./firebase.js";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -15,9 +13,19 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
     return fallbackData;
   }
 
+  const headers = { ...options.headers };
+  if (auth.currentUser) {
+    try {
+      const token = await auth.currentUser.getIdToken();
+      headers["Authorization"] = `Bearer ${token}`;
+    } catch (e) {
+      console.warn("Failed to fetch Firebase ID token:", e);
+    }
+  }
+
   try {
     const url = `${BASE_URL}${endpoint}`;
-    const res = await fetch(url, options);
+    const res = await fetch(url, { ...options, headers });
     if (!res.ok) {
       const errBody = await res.text();
       let msg = `API error ${res.status}`;
@@ -33,6 +41,7 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
     throw err;
   }
 }
+
 
 export const dashboardService = {
   async getOverview() {
@@ -449,3 +458,24 @@ TIMELINE: Year 1: Cover crops in fallow. Year 2: Reduce tillage. Year 3: Localiz
     dataSource: "DEMO — Scenario Engine fallback"
   };
 }
+
+export const userService = {
+  async getProfile() {
+    return safeFetch("/users/me", {}, {
+      uid: "mock-uid",
+      email: "farmer@terrapulse.org",
+      displayName: "Demo Farmer",
+      farmName: "Green Valley Farm",
+      location: "Pune, Maharashtra",
+      acreage: 30
+    });
+  },
+  async updateProfile(data) {
+    return safeFetch("/users/me", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    }, data);
+  }
+};
+

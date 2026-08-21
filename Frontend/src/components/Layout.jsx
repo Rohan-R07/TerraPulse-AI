@@ -1,6 +1,7 @@
 import { NavLink, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import logo from "../assets/logo.png";
+import { useAuth } from "../hooks/useAuth.jsx";
 import {
   LayoutDashboard,
   Map as MapIcon,
@@ -64,6 +65,7 @@ export function Sidebar({ open, onClose }) {
 export function Topbar({ onMenu }) {
   const [lang, setLang] = useState(localStorage.getItem("tp-lang") || "en");
   const [appMode, setAppMode] = useState(localStorage.getItem("tp-app-mode") || "demo");
+  const { user, profile, logOut } = useAuth();
 
   const handleLangChange = (e) => {
     const val = e.target.value;
@@ -83,7 +85,7 @@ export function Topbar({ onMenu }) {
       <button className="tp-topbar-menu" onClick={onMenu} aria-label="Open menu">
         <Menu size={22} />
       </button>
-      <div className="tp-topbar-title">Green Valley Farm</div>
+      <div className="tp-topbar-title">{profile?.farmName || "Green Valley Farm"}</div>
       <div className="tp-topbar-right" style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <select
           value={lang}
@@ -130,6 +132,35 @@ export function Topbar({ onMenu }) {
             DEMO
           </button>
         </div>
+
+        {user && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, borderLeft: "2.5px solid #111827", paddingLeft: 12 }}>
+            <div style={{ display: "none", flexDirection: "column", alignItems: "flex-end" }} className="tp-topbar-userinfo">
+              <span style={{ fontSize: "0.78rem", fontWeight: 800, color: "var(--tp-neutral-800)" }}>
+                {profile?.displayName || user.displayName || "Farmer"}
+              </span>
+              <span style={{ fontSize: "0.68rem", color: "var(--tp-neutral-500)", fontWeight: 600 }}>
+                {user.email}
+              </span>
+            </div>
+            <button
+              onClick={logOut}
+              className="tp-btn tp-btn-sm"
+              style={{
+                padding: "4px 8px",
+                height: 32,
+                background: "#fee2e2",
+                color: "#dc2626",
+                border: "2.5px solid #111827",
+                boxShadow: "none",
+                fontSize: "0.75rem",
+                fontWeight: 700
+              }}
+            >
+              Sign Out
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

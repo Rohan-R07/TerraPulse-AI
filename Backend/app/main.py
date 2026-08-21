@@ -17,7 +17,8 @@ from app.routers import (
     voice,
     cooperative,
     copilot,
-    actions
+    actions,
+    users
 )
 
 # Configure base logger
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(cooperative.router, prefix="/api/v1")
     app.include_router(copilot.router, prefix="/api/v1")
     app.include_router(actions.router, prefix="/api/v1")
+    app.include_router(users.router, prefix="/api/v1")
 
     return app
 

@@ -1,4 +1,5 @@
 from fastapi import HTTPException, UploadFile, Header
+from firebase_admin import auth
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -12,8 +13,16 @@ def validate_uploaded_image(file: UploadFile):
 
 async def verify_firebase_token(authorization: str = Header(None)):
     if not authorization:
-        # For now, allow requests to fall back to demo mode or fail if credentials are required.
-        return None
-    token = authorization.replace("Bearer ", "")
-    # Placeholder: In the future, call firebase_admin.auth.verify_id_token(token)
-    return {"uid": "placeholder_farmer_id", "email": "farmer@terrapulse.org"}
+        raise HTTPException(
+            status_code=401,
+            detail="Authorization header missing or invalid"
+        )
+    try:
+        token = authorization.replace("Bearer ", "")
+        decoded_token = auth.verify_id_token(token)
+        return decoded_token
+    except Exception as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid or expired authentication token: {str(e)}"
+        )

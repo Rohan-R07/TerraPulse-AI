@@ -1,9 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import "./services/firebase.js";
 import "./styles/app.css";
+import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
 import Landing from "./pages/Landing.jsx";
+import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import FarmHealth from "./pages/FarmHealth.jsx";
 import AIScanner from "./pages/AIScanner.jsx";
@@ -13,28 +15,57 @@ import ActionCenter from "./pages/ActionCenter.jsx";
 import IndiaIntelligence from "./pages/IndiaIntelligence.jsx";
 import { AppLayout } from "./components/Layout.jsx";
 
+function PrivateRoute() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <div className="tp-spinner" style={{ width: 40, height: 40 }} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <Outlet />;
+}
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route
-          element={
-            <AppLayout>
-              <Outlet />
-            </AppLayout>
-          }
-        >
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/farm-health" element={<FarmHealth />} />
-          <Route path="/ai-scanner" element={<AIScanner />} />
-          <Route path="/carbon-simulator" element={<CarbonSimulator />} />
-          <Route path="/copilot" element={<AICopilot />} />
-          <Route path="/actions" element={<ActionCenter />} />
-          <Route path="/india-intelligence" element={<IndiaIntelligence />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            element={
+              <PrivateRoute />
+            }
+          >
+            <Route
+              element={
+                <AppLayout>
+                  <Outlet />
+                </AppLayout>
+              }
+            >
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/farm-health" element={<FarmHealth />} />
+              <Route path="/ai-scanner" element={<AIScanner />} />
+              <Route path="/carbon-simulator" element={<CarbonSimulator />} />
+              <Route path="/copilot" element={<AICopilot />} />
+              <Route path="/actions" element={<ActionCenter />} />
+              <Route path="/india-intelligence" element={<IndiaIntelligence />} />
+            </Route>
+          </Route>
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>
 );
+

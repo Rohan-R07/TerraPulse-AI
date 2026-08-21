@@ -9,3 +9,5 @@ firebase-admin
 requests
 python-multipart
 python-dotenv
+pymongo
+pymongo[srv]

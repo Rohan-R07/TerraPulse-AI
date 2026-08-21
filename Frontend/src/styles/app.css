@@ -485,6 +485,8 @@
   .tp-content { padding: var(--tp-space-4); }
   h1 { font-size: 1.95rem; }
   h2 { font-size: 1.4rem; }
+}@media (min-width: 640px) {
+  .tp-topbar-userinfo {
+    display: flex !important;
+  }
 }
-
-

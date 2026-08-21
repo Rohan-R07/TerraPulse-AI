@@ -14,8 +14,11 @@ const firebaseConfig = {
   measurementId: "G-97N3W37TFF"
 };
 
+import { getAuth } from "firebase/auth";
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = typeof window !== "undefined" ? getAnalytics(app) : null;
+const auth = getAuth(app);
 
-export { app, analytics };
+export { app, auth, analytics };
