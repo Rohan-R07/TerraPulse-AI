@@ -2,14 +2,78 @@ import time
 import json
 import logging
 import re
+import requests
+import base64
 import google.generativeai as genai
 from app.config import settings
 from app.utils.audit import AIAuditor
 
 logger = logging.getLogger("TerraPulseBackend.Gemini")
 
+ALLOWED_GEMMA_MODELS = [
+    "google/gemma-4-26b-a4b-it:free",
+    "google/gemma-4-31b-it:free"
+]
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
 class GeminiService:
     _initialized = False
+
+    @staticmethod
+    def _openrouter_request(messages: list, timeout: int = 60, max_retries: int = 2) -> dict | None:
+        """Send a request to OpenRouter using ONLY the two specified Google Gemma 4 models:
+        - google/gemma-4-26b-a4b-it:free
+        - google/gemma-4-31b-it:free
+        Returns the parsed JSON response dict on success, or None on failure."""
+        if not settings.OPENROUTER_API_KEY:
+            return None
+        headers = {
+            "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        for model_id in ALLOWED_GEMMA_MODELS:
+            payload = {
+                "model": model_id,
+                "messages": messages,
+                "max_tokens": 2048
+            }
+            for attempt in range(1, max_retries + 1):
+                try:
+                    logger.info(f"Trying OpenRouter model: {model_id} (attempt {attempt}/{max_retries})")
+                    resp = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=timeout)
+                    if resp.status_code == 200:
+                        logger.info(f"OpenRouter SUCCESS with model: {model_id}")
+                        res_json = resp.json()
+                        res_json["used_model"] = model_id
+                        return res_json
+                    elif resp.status_code == 429:
+                        wait = 2 ** attempt
+                        logger.warning(f"OpenRouter 429 on {model_id} (attempt {attempt}/{max_retries}). Retrying in {wait}s...")
+                        time.sleep(wait)
+                        continue
+                    else:
+                        logger.warning(f"OpenRouter [{model_id}] returned [{resp.status_code}]: {resp.text[:200]}")
+                        break
+                except requests.exceptions.Timeout:
+                    logger.error(f"OpenRouter [{model_id}] timed out")
+                    break
+                except Exception as ex:
+                    logger.error(f"OpenRouter [{model_id}] exception: {ex}")
+                    break
+        logger.error("OpenRouter exhausted both Google Gemma 4 models")
+        return None
+
+    @staticmethod
+    def _extract_json_from_content(content: str) -> str:
+        """Strip markdown code fences from model output."""
+        content = content.strip()
+        if content.startswith("```json"):
+            content = content[7:]
+        elif content.startswith("```"):
+            content = content[3:]
+        if content.endswith("```"):
+            content = content[:-3]
+        return content.strip()
 
     @classmethod
     def _initialize(cls):
@@ -60,48 +124,29 @@ Strict rules:
 
         if settings.OPENROUTER_API_KEY:
             try:
-                import requests
-                import base64
                 img_b64 = base64.b64encode(image_bytes).decode("utf-8")
-                url = "https://openrouter.ai/api/v1/chat/completions"
-                headers = {
-                    "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-                    "Content-Type": "application/json"
-                }
-                data = {
-                    "model": "google/gemma-4-26b-a4b-it:free",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:{mime_type or 'image/jpeg'};base64,{img_b64}"
-                                    }
-                                }
-                            ]
-                        }
+                messages = [{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:{mime_type or 'image/jpeg'};base64,{img_b64}"}}
                     ]
-                }
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-                if response.status_code == 200:
-                    resp_json = response.json()
-                    content = resp_json["choices"][0]["message"]["content"].strip()
-                    if content.startswith("```json"):
-                        content = content[7:]
-                    if content.endswith("```"):
-                        content = content[:-3]
-                    content = content.strip()
+                }]
+                logger.info("Sending plant image to OpenRouter (Gemma 4 models)")
+                resp_json = cls._openrouter_request(messages, timeout=60)
+                if resp_json:
+                    used_model = resp_json.get("used_model", "google/gemma-4-31b-it:free")
+                    content = resp_json["choices"][0]["message"]["content"]
+                    content = cls._extract_json_from_content(content)
                     res_dict = json.loads(content)
                     res_dict["source"] = "openrouter"
                     res_dict["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
                     latency = (time.time() - start_time) * 1000
-                    AIAuditor.log_operation("google/gemma-4-26b-a4b-it:free", feature, field_id, "v1_plant_scan", latency, True)
+                    logger.info(f"OpenRouter plant diagnosis SUCCESS via {used_model}: {res_dict.get('diagnosis')} (confidence: {res_dict.get('confidence')})")
+                    AIAuditor.log_operation(used_model, feature, field_id, "v1_plant_scan", latency, True)
                     return res_dict
-                else:
-                    logger.error(f"OpenRouter response failed with status {response.status_code}: {response.text}")
+            except json.JSONDecodeError as je:
+                logger.error(f"OpenRouter plant vision returned non-JSON: {je}")
             except Exception as ex:
                 logger.error(f"OpenRouter plant vision call failed: {ex}")
 
@@ -164,48 +209,29 @@ Strict rules:
 
         if settings.OPENROUTER_API_KEY:
             try:
-                import requests
-                import base64
                 img_b64 = base64.b64encode(image_bytes).decode("utf-8")
-                url = "https://openrouter.ai/api/v1/chat/completions"
-                headers = {
-                    "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-                    "Content-Type": "application/json"
-                }
-                data = {
-                    "model": "google/gemma-4-26b-a4b-it:free",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:{mime_type or 'image/jpeg'};base64,{img_b64}"
-                                    }
-                                }
-                            ]
-                        }
+                messages = [{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:{mime_type or 'image/jpeg'};base64,{img_b64}"}}
                     ]
-                }
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-                if response.status_code == 200:
-                    resp_json = response.json()
-                    content = resp_json["choices"][0]["message"]["content"].strip()
-                    if content.startswith("```json"):
-                        content = content[7:]
-                    if content.endswith("```"):
-                        content = content[:-3]
-                    content = content.strip()
+                }]
+                logger.info("Sending soil image to OpenRouter (Gemma 4 models)")
+                resp_json = cls._openrouter_request(messages, timeout=60)
+                if resp_json:
+                    used_model = resp_json.get("used_model", "google/gemma-4-31b-it:free")
+                    content = resp_json["choices"][0]["message"]["content"]
+                    content = cls._extract_json_from_content(content)
                     res_dict = json.loads(content)
                     res_dict["source"] = "openrouter"
                     res_dict["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
                     latency = (time.time() - start_time) * 1000
-                    AIAuditor.log_operation("google/gemma-4-26b-a4b-it:free", feature, "Unknown", "v1_soil_scan", latency, True)
+                    logger.info(f"OpenRouter soil diagnosis SUCCESS via {used_model}: {res_dict.get('soil_condition', '')[:80]}")
+                    AIAuditor.log_operation(used_model, feature, "Unknown", "v1_soil_scan", latency, True)
                     return res_dict
-                else:
-                    logger.error(f"OpenRouter response failed with status {response.status_code}: {response.text}")
+            except json.JSONDecodeError as je:
+                logger.error(f"OpenRouter soil vision returned non-JSON: {je}")
             except Exception as ex:
                 logger.error(f"OpenRouter soil vision call failed: {ex}")
 
@@ -409,9 +435,7 @@ Strict rules:
             AIAuditor.log_operation(model_name, feature, field_id, "v1_copilot", latency, True)
             return fallback
 
-        cls._initialize()
-        try:
-            system_instructions = f"""You are the TerraPulse AI Farm Copilot, a senior Indian agricultural expert.
+        system_instructions = f"""You are the TerraPulse AI Farm Copilot, a senior Indian agricultural expert.
 Use the following strict field context to answer the user's question.
 
 FIELD CONTEXT:
@@ -438,6 +462,27 @@ STRICT RULES:
    - RECOMMENDED: (action and urgency)
 3. Keep it farmer-friendly and highly practical.
 """
+
+        # --- Try OpenRouter first (reliable, with retry on 429) ---
+        or_messages = [{"role": "system", "content": system_instructions}]
+        for msg in messages:
+            or_messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+        logger.info("Sending copilot chat to OpenRouter (Gemma 4 models)")
+        resp_json = cls._openrouter_request(or_messages, timeout=30)
+        if resp_json:
+            try:
+                used_model = resp_json.get("used_model", "google/gemma-4-31b-it:free")
+                reply = resp_json["choices"][0]["message"]["content"].strip()
+                latency = (time.time() - start_time) * 1000
+                logger.info(f"OpenRouter copilot chat SUCCESS via {used_model} ({latency:.0f}ms)")
+                AIAuditor.log_operation(used_model, feature, field_id, "v1_copilot", latency, True)
+                return reply
+            except Exception as ex:
+                logger.error(f"OpenRouter copilot response parse failed: {ex}")
+
+        # --- Fallback to Gemini SDK ---
+        cls._initialize()
+        try:
             model = genai.GenerativeModel(model_name)
             contents = [{"role": "user", "parts": [system_instructions]}]
             for msg in messages:
@@ -462,6 +507,15 @@ STRICT RULES:
         if settings.TERRAPULSE_DEMO_MODE:
             return cls._get_unstructured_fallback(prompt)
 
+        # --- Try OpenRouter first (with retry on 429) ---
+        resp_json = cls._openrouter_request([{"role": "user", "content": prompt}], timeout=30)
+        if resp_json:
+            try:
+                return resp_json["choices"][0]["message"]["content"].strip()
+            except Exception as ex:
+                logger.error(f"OpenRouter content parse failed: {ex}")
+
+        # --- Fallback to Gemini SDK ---
         cls._initialize()
         try:
             model = genai.GenerativeModel("gemini-1.5-flash")
