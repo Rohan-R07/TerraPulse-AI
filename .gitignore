@@ -29,3 +29,4 @@ __pycache__/
 Backend/venv/
 Backend/__pycache__/
 Backend/.pytest_cache/
+.firebase/
