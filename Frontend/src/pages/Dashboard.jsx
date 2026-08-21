@@ -53,6 +53,52 @@ export default function Dashboard() {
     }
   }, [recs.data]);
 
+  const detectLocation = async () => {
+    return new Promise((resolve) => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          const { latitude, longitude } = position.coords;
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            if (res.ok) {
+              const data = await res.json();
+              const address = data.address;
+              const city = address.city || address.town || address.village || address.suburb || "";
+              const state = address.state || "";
+              const country = address.country || "";
+              const displayLoc = [city, state, country].filter(Boolean).join(", ");
+              if (displayLoc) {
+                resolve(displayLoc);
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn("Nominatim reverse geocoding failed, trying fallback...", e);
+          }
+          resolve(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        }, async (err) => {
+          console.warn("GPS Geolocation failed/denied, trying IP geolocation...", err);
+          try {
+            const res = await fetch("https://ipapi.co/json/");
+            if (res.ok) {
+              const ipData = await res.json();
+              const displayLoc = [ipData.city, ipData.region, ipData.country_name].filter(Boolean).join(", ");
+              if (displayLoc) {
+                resolve(displayLoc);
+                return;
+              }
+            }
+          } catch (ipErr) {
+            console.warn("IP Geolocation failed:", ipErr);
+          }
+          resolve("Pune, Maharashtra");
+        }, { enableHighAccuracy: true, timeout: 5000 });
+      } else {
+        resolve("Pune, Maharashtra");
+      }
+    });
+  };
+
   // Populate edit fields when profile data loads
   useEffect(() => {
     if (profile.data) {
@@ -60,6 +106,28 @@ export default function Dashboard() {
       setEditLocation(profile.data.location || "Pune, Maharashtra");
       setEditAcreage(profile.data.acreage || 30);
       setEditDisplayName(profile.data.displayName || user?.displayName || "Farmer");
+    }
+  }, [profile.data, user]);
+
+  // Auto-detect and sync location on initial load if default/unset
+  useEffect(() => {
+    if (profile.data && (!profile.data.location || profile.data.location === "Pune, Maharashtra")) {
+      detectLocation()
+        .then(async (loc) => {
+          if (loc && loc !== profile.data.location) {
+            try {
+              await userService.updateProfile({
+                farmName: profile.data.farmName || "Green Valley Farm",
+                location: loc,
+                acreage: profile.data.acreage || 30,
+                displayName: profile.data.displayName || user?.displayName || "Farmer"
+              });
+              profile.refetch();
+            } catch (err) {
+              console.warn("Auto profile update failed:", err);
+            }
+          }
+        });
     }
   }, [profile.data, user]);
 
@@ -130,7 +198,6 @@ export default function Dashboard() {
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", width: "100%" }}>
                   <CardTitle icon={Sprout}>Farm Ledger</CardTitle>
-                  <Badge variant="neutral">MongoDB Sync</Badge>
                 </div>
                 <div style={{ marginTop: 4 }}>
                   <div style={{ fontSize: "1.05rem", fontWeight: 800 }}>{profile.data.farmName || "Green Valley Farm"}</div>
@@ -425,12 +492,30 @@ export default function Dashboard() {
                   />
                 </Field>
                 <Field label="Location" required>
-                  <Input 
-                    type="text" 
-                    value={editLocation} 
-                    onChange={(e) => setEditLocation(e.target.value)} 
-                    required 
-                  />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Input 
+                      type="text" 
+                      value={editLocation} 
+                      onChange={(e) => setEditLocation(e.target.value)} 
+                      required 
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={async () => {
+                        try {
+                          const loc = await detectLocation();
+                          setEditLocation(loc);
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
+                      style={{ padding: "8px 12px", height: 38, fontSize: "0.75rem", fontWeight: 700 }}
+                    >
+                      Detect
+                    </Button>
+                  </div>
                 </Field>
                 <Field label="Acreage (Acres)" required>
                   <Input 
