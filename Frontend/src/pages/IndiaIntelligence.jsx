@@ -4,16 +4,36 @@ import {
 } from "../components/ui.jsx";
 import { indiaService, ragService } from "../services/api.js";
 import { Markdown } from "../components/Markdown.jsx";
+import { useAuth } from "../hooks/useAuth.jsx";
 import {
   Globe, Search, MapPin, AlertTriangle, ShieldCheck, BookOpen, Users, Compass, HelpCircle
 } from "lucide-react";
 
 export default function IndiaIntelligence() {
+  const { profile } = useAuth();
+
   // Filters
   const [state, setState] = useState("Maharashtra");
   const [district, setDistrict] = useState("Pune");
   const [crop, setCrop] = useState("Cotton");
   const [season, setSeason] = useState("Kharif");
+
+  // Sync state and district with user profile's live location
+  useEffect(() => {
+    if (profile?.location) {
+      const parts = profile.location.split(",");
+      if (parts.length >= 2) {
+        const detectedDistrict = parts[0].trim();
+        const detectedState = parts[1].trim();
+        if (detectedDistrict) {
+          setDistrict(detectedDistrict);
+        }
+        if (detectedState) {
+          setState(detectedState);
+        }
+      }
+    }
+  }, [profile]);
 
   // Regional metrics state
   const [metricsLoading, setMetricsLoading] = useState(false);
@@ -81,6 +101,9 @@ export default function IndiaIntelligence() {
               <option value="Uttar Pradesh">Uttar Pradesh</option>
               <option value="Telangana">Telangana</option>
               <option value="West Bengal">West Bengal</option>
+              {state && !["Maharashtra", "Karnataka", "Punjab", "Uttar Pradesh", "Telangana", "West Bengal"].includes(state) && (
+                <option value={state}>{state}</option>
+              )}
             </Select>
           </Field>
 
@@ -99,6 +122,9 @@ export default function IndiaIntelligence() {
                 </>
               ) : (
                 <>
+                  {district && !["Central", "Southern"].includes(district) && (
+                    <option value={district}>{district}</option>
+                  )}
                   <option value="Central">Central District</option>
                   <option value="Southern">Southern District</option>
                 </>
@@ -135,7 +161,7 @@ export default function IndiaIntelligence() {
               <div className="tp-stat">
                 <span className="tp-stat-label">Active Node Connections</span>
                 <span className="tp-stat-value">{metricsData.monitoredFarms} farms</span>
-                <span className="tp-hint" style={{ color: "var(--tp-green-600)", fontWeight: 700 }}>Maharashtra Regional Pool</span>
+                <span className="tp-hint" style={{ color: "var(--tp-green-600)", fontWeight: 700 }}>{state} Regional Pool</span>
               </div>
             </Card>
 

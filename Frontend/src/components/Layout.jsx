@@ -29,11 +29,11 @@ export function Sidebar({ open, onClose }) {
   const { profile } = useAuth();
 
   let regionName = "Pune Region";
-  if (profile?.data?.location) {
-    const parts = profile.data.location.split(",");
-    regionName = parts[0].strip ? parts[0].strip() : parts[0].trim();
+  if (profile?.location) {
+    const parts = profile.location.split(",");
+    regionName = parts[0].trim();
     if (parts[1]) {
-      regionName += ", " + (parts[1].strip ? parts[1].strip() : parts[1].trim());
+      regionName += ", " + parts[1].trim();
     }
   }
 
