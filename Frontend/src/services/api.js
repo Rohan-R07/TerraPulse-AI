@@ -40,7 +40,10 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
     }
     return await res.json();
   } catch (err) {
-    console.warn(`Backend API failed for ${endpoint}: ${err.message}`);
+    console.warn(`Backend API failed for ${endpoint}: ${err.message}. Using fallback data.`);
+    if (fallbackData !== null) {
+      return typeof fallbackData === "function" ? fallbackData() : fallbackData;
+    }
     throw err;
   }
 }
