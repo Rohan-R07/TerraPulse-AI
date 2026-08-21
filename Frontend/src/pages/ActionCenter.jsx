@@ -176,7 +176,7 @@ export default function ActionCenter() {
                   background: isCompleted ? "var(--tp-neutral-50)" : "#ffffff"
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
+                <div className="tp-action-card-inner">
                   <div className="tp-grow">
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
                       <strong style={{ fontSize: "0.95rem" }}>{act.field}</strong>
@@ -195,7 +195,7 @@ export default function ActionCenter() {
                   </div>
 
                   {!isCompleted && (
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div className="tp-row tp-action-buttons" style={{ gap: 8 }}>
                       <Button variant="secondary" size="sm" onClick={() => handleDismissAction(act.id)}>
                         Dismiss
                       </Button>

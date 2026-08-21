@@ -11,11 +11,12 @@ from app.utils.audit import AIAuditor
 logger = logging.getLogger("TerraPulseBackend.Gemini")
 
 ALLOWED_GOOGLE_MODELS = [
-    "google/gemini-2.5-flash",
-    "google/gemini-2.5-flash-lite",
+    "google/gemini-2.5-flash:free",
+    "google/gemini-2.5-flash-lite:free",
     "google/gemma-2-9b-it:free",
     "openrouter/free",
-    "google/gemma-4-31b-it:free"
+    "meta-llama/llama-3-8b-instruct:free",
+    "qwen/qwen-2-7b-instruct:free"
 ]
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -140,7 +141,7 @@ class GeminiService:
     @classmethod
     def generate_plant_diagnosis(cls, image_bytes: bytes, mime_type: str, crop: str = "Unknown", field_id: str = "Unknown", location: str = "Unknown", crop_stage: str = "Unknown") -> dict:
         feature = "plant_scanner"
-        model_name = "openrouter/free"
+        model_name = "gemini-1.5-flash"
         start_time = time.time()
         
         if settings.TERRAPULSE_DEMO_MODE:
@@ -234,7 +235,7 @@ Strict rules:
     @classmethod
     def generate_soil_diagnosis(cls, image_bytes: bytes, mime_type: str) -> dict:
         feature = "soil_scanner"
-        model_name = "openrouter/free"
+        model_name = "gemini-1.5-flash"
         start_time = time.time()
         
         if settings.TERRAPULSE_DEMO_MODE:
@@ -330,11 +331,7 @@ Strict rules:
             fallback = cls._get_advisory_fallback(context)
             AIAuditor.log_operation(model_name, feature, field_id, "v1_advisory", latency, True)
             return fallback
-
-        cls._initialize()
-        try:
-            model = genai.GenerativeModel(model_name)
-            prompt = f"""You are the TerraPulse AI Senior Agronomist. Generate a structured farm advisory based on this field context:
+        prompt = f"""You are the TerraPulse AI Senior Agronomist. Generate a structured farm advisory based on this field context:
 
 FIELD CONTEXT:
 - Field Selected: {context.get('fieldName', 'West Field')}
@@ -380,6 +377,36 @@ Strict rules:
 2. EXPLAIN RECOMMENDATIONS USING ACTUAL NUMERICAL OBSERVATIONS provided in the context (NDVI, NDVI change, temperature, rainfall, soil moisture).
 3. Do NOT invent, guess, or change any of the satellite or weather measurements. If a number is missing, discuss only the numbers present.
 """
+
+        # --- Try OpenRouter first ---
+        if settings.OPENROUTER_API_KEY:
+            try:
+                or_messages = [{"role": "user", "content": prompt}]
+                logger.info("Sending advisory request to OpenRouter")
+                resp_json = cls._openrouter_request(or_messages, timeout=30)
+                if resp_json:
+                    used_model = resp_json.get("used_model", "google/gemini-2.5-flash:free")
+                    content = resp_json.get("extracted_text") or resp_json["choices"][0]["message"].get("content") or ""
+                    content = cls._extract_json_from_content(content)
+                    data = json.loads(content)
+                    
+                    data["advisory"] = data.get("explanation", "")
+                    risk_map = {"LOW": 20, "MEDIUM": 50, "HIGH": 75, "CRITICAL": 90}
+                    data["riskScore"] = risk_map.get(data.get("risk_level", "MEDIUM"), 50)
+                    data["riskStatus"] = data.get("risk_level", "MEDIUM")
+                    data["dataSource"] = f"LIVE — OpenRouter ({used_model})"
+                    
+                    latency = (time.time() - start_time) * 1000
+                    logger.info(f"OpenRouter advisory SUCCESS via {used_model}")
+                    AIAuditor.log_operation(used_model, feature, field_id, "v1_advisory", latency, True)
+                    return data
+            except Exception as ex:
+                logger.error(f"OpenRouter advisory generation failed: {ex}")
+
+        # --- Fallback to Gemini SDK ---
+        cls._initialize()
+        try:
+            model = genai.GenerativeModel("gemini-1.5-flash")
             response = model.generate_content(
                 prompt,
                 generation_config={"response_mime_type": "application/json"}
@@ -388,15 +415,13 @@ Strict rules:
             latency = (time.time() - start_time) * 1000
             data = json.loads(response.text.strip())
             
-            # Map backward compatibility fields
             data["advisory"] = data["explanation"]
-            # Simple conversion of risk level to numerical score if needed
             risk_map = {"LOW": 20, "MEDIUM": 50, "HIGH": 75, "CRITICAL": 90}
             data["riskScore"] = risk_map.get(data["risk_level"], 50)
             data["riskStatus"] = data["risk_level"]
             data["dataSource"] = "LIVE — Gemini Advisor"
             
-            AIAuditor.log_operation(model_name, feature, field_id, "v1_advisory", latency, True)
+            AIAuditor.log_operation("gemini-1.5-flash", feature, field_id, "v1_advisory", latency, True)
             return data
         except Exception as e:
             latency = (time.time() - start_time) * 1000

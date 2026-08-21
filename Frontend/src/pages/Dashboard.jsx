@@ -187,7 +187,7 @@ export default function Dashboard() {
       )}
 
       {/* Top row: health + stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: 20 }}>
+      <div className="tp-dashboard-grid">
         <Card>
           {overview.loading ? (
             <div style={{ display: "flex", justifyContent: "center", padding: 16 }}><Spinner /></div>
@@ -324,22 +324,24 @@ export default function Dashboard() {
           {fields.loading ? (
             <div style={{ padding: 20 }}><Skeleton h={180} /></div>
           ) : fields.data ? (
-            <table className="tp-table">
-              <thead>
-                <tr><th>Field</th><th>Crop</th><th>NDVI</th><th>Moisture</th><th>Risk</th></tr>
-              </thead>
-              <tbody>
-                {fields.data.map((f) => (
-                  <tr key={f.id}>
-                    <td><strong>{f.name}</strong><div className="tp-hint">{f.acres} ac · {f.soilType}</div></td>
-                    <td>{f.crop}</td>
-                    <td>{f.ndvi.toFixed(2)}</td>
-                    <td>{f.moisture}%</td>
-                    <td><RiskBadge risk={f.risk} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="tp-table-wrapper">
+              <table className="tp-table">
+                <thead>
+                  <tr><th>Field</th><th>Crop</th><th>NDVI</th><th>Moisture</th><th>Risk</th></tr>
+                </thead>
+                <tbody>
+                  {fields.data.map((f) => (
+                    <tr key={f.id}>
+                      <td><strong>{f.name}</strong><div className="tp-hint">{f.acres} ac · {f.soilType}</div></td>
+                      <td>{f.crop}</td>
+                      <td>{f.ndvi.toFixed(2)}</td>
+                      <td>{f.moisture}%</td>
+                      <td><RiskBadge risk={f.risk} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : null}
           <div style={{ padding: 12 }}>
             <Link to="/farm-health" className="tp-row" style={{ fontWeight: 600, fontSize: "0.86rem", color: "var(--tp-green-600)" }}>
@@ -356,21 +358,23 @@ export default function Dashboard() {
           {scans.loading ? (
             <div style={{ padding: 20 }}><Skeleton h={180} /></div>
           ) : scans.data ? (
-            <table className="tp-table">
-              <thead>
-                <tr><th>Date</th><th>Type</th><th>Result</th><th>Severity</th></tr>
-              </thead>
-              <tbody>
-                {scans.data.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.date}</td>
-                    <td><Badge variant={s.type === "Plant" ? "info" : "neutral"}>{s.type}</Badge></td>
-                    <td>{s.result}</td>
-                    <td><Badge variant={s.severity === "High" ? "error" : s.severity === "Medium" ? "warning" : s.severity === "Low" ? "info" : "success"}>{s.severity}</Badge></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="tp-table-wrapper">
+              <table className="tp-table">
+                <thead>
+                  <tr><th>Date</th><th>Type</th><th>Result</th><th>Severity</th></tr>
+                </thead>
+                <tbody>
+                  {scans.data.map((s) => (
+                    <tr key={s.id}>
+                      <td>{s.date}</td>
+                      <td><Badge variant={s.type === "Plant" ? "info" : "neutral"}>{s.type}</Badge></td>
+                      <td>{s.result}</td>
+                      <td><Badge variant={s.severity === "High" ? "error" : s.severity === "Medium" ? "warning" : s.severity === "Low" ? "info" : "success"}>{s.severity}</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : null}
           <div style={{ padding: 12 }}>
             <Link to="/ai-scanner" className="tp-row" style={{ fontWeight: 600, fontSize: "0.86rem", color: "var(--tp-green-600)" }}>

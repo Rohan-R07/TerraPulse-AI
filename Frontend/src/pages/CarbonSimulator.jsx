@@ -91,7 +91,7 @@ export default function CarbonSimulator() {
         <p>Plan a 3-year crop rotation and simulate soil carbon recovery, yield resilience, and voluntary carbon credits.</p>
       </div>
 
-      <div className="tp-grid" style={{ gridTemplateColumns: "1fr 1.3fr" }}>
+      <div className="tp-carbon-simulator-grid">
         {/* Inputs */}
         <Card>
           <CardTitle icon={Calculator}>Simulation inputs</CardTitle>

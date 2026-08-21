@@ -164,7 +164,7 @@ RECOMMENDED:
         <p>Your multilingual Gemini-powered assistant. Ask questions about irrigation, soil compaction, and disease management.</p>
       </div>
 
-      <div className="tp-grid" style={{ gridTemplateColumns: "1.2fr 1fr", height: "calc(100vh - 200px)", minHeight: 600 }}>
+      <div className="tp-copilot-grid">
         {/* Chat view */}
         <Card style={{ display: "flex", flexDirection: "column", height: "100%", padding: 0 }}>
           <div style={{ padding: 16, borderBottom: "2.5px solid #111827", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--tp-neutral-50)" }}>

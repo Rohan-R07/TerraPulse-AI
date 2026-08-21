@@ -141,7 +141,7 @@ export default function FarmHealth() {
       </div>
 
       {/* Map + Field detail */}
-      <div className="tp-grid" style={{ gridTemplateColumns: "1.4fr 1fr", marginBottom: 20 }}>
+      <div className="tp-farm-health-grid">
         <Card pad={false}>
           <div style={{ padding: "var(--tp-space-5) var(--tp-space-5) var(--tp-space-3)" }}>
             <CardTitle icon={MapIcon}>Interactive field map</CardTitle>
