@@ -3,6 +3,7 @@ import {
   Card, CardTitle, Badge, Button, Spinner, Skeleton, ErrorState, Field, Select, Input,
 } from "../components/ui.jsx";
 import { indiaService, ragService } from "../services/api.js";
+import { Markdown } from "../components/Markdown.jsx";
 import {
   Globe, Search, MapPin, AlertTriangle, ShieldCheck, BookOpen, Users, Compass, HelpCircle
 } from "lucide-react";
@@ -235,10 +236,9 @@ export default function IndiaIntelligence() {
                 borderRadius: 10,
                 fontSize: "0.84rem",
                 lineHeight: 1.4,
-                color: "var(--tp-neutral-800)",
-                whiteSpace: "pre-line"
+                color: "var(--tp-neutral-800)"
               }}>
-                {ragResult.answer}
+                <Markdown content={ragResult.answer} />
               </div>
               
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

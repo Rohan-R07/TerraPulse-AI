@@ -3,6 +3,7 @@ import {
   Card, CardTitle, Badge, Button, Spinner, Skeleton,
 } from "../components/ui.jsx";
 import { copilotService, actionService } from "../services/api.js";
+import { Markdown } from "../components/Markdown.jsx";
 import {
   MessageSquare, Mic, MicOff, Send, Volume2, Plus, Sparkles, User, Bot, HelpCircle
 } from "lucide-react";
@@ -205,7 +206,9 @@ RECOMMENDED:
                     background: isUser ? "var(--tp-green-100)" : "#ffffff",
                     boxShadow: "var(--tp-shadow-xs)"
                   }}>
-                    <div style={{ fontSize: "0.88rem", whiteSpace: "pre-line", lineHeight: 1.5 }}>{m.content}</div>
+                    <div style={{ fontSize: "0.88rem", lineHeight: 1.5 }}>
+                      <Markdown content={m.content} />
+                    </div>
                     
                     {!isUser && (
                       <div style={{ display: "flex", gap: 8, marginTop: 10, borderTop: "1px dashed var(--tp-neutral-200)", paddingTop: 8 }}>

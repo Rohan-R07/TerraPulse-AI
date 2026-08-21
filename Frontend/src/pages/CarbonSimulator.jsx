@@ -3,6 +3,7 @@ import {
   Card, CardTitle, Button, Field, Select, Input, Badge, Spinner, Progress,
 } from "../components/ui.jsx";
 import { simulatorService } from "../services/api.js";
+import { Markdown } from "../components/Markdown.jsx";
 import { soilTypes, cropOptions } from "../data/mockData.js";
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -274,9 +275,9 @@ export default function CarbonSimulator() {
                 <h4 style={{ color: "var(--tp-green-800)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
                   <Sparkles size={16} /> AI Strategic Agro-rotation Analysis
                 </h4>
-                <p style={{ fontSize: "0.88rem", whiteSpace: "pre-line", lineHeight: 1.5, color: "var(--tp-neutral-900)" }}>
-                  {result.strategyAnalysis}
-                </p>
+                <div style={{ fontSize: "0.88rem", lineHeight: 1.5, color: "var(--tp-neutral-900)" }}>
+                  <Markdown content={result.strategyAnalysis} />
+                </div>
               </div>
             </div>
           )}

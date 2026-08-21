@@ -11,12 +11,11 @@ from app.utils.audit import AIAuditor
 logger = logging.getLogger("TerraPulseBackend.Gemini")
 
 ALLOWED_GOOGLE_MODELS = [
+    "google/gemini-2.5-flash",
+    "google/gemini-2.5-flash-lite",
+    "google/gemma-2-9b-it:free",
     "openrouter/free",
-    "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "dots-studio/dots-3-note-preview:free",
-    "liquid/lfm-2.5-2.6b:free",
-    "nvidia/nemotron-3-nano-30b-a3b:free"
+    "google/gemma-4-31b-it:free"
 ]
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 

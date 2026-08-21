@@ -26,6 +26,17 @@ const navItems = [
 ];
 
 export function Sidebar({ open, onClose }) {
+  const { profile } = useAuth();
+
+  let regionName = "Pune Region";
+  if (profile?.data?.location) {
+    const parts = profile.data.location.split(",");
+    regionName = parts[0].strip ? parts[0].strip() : parts[0].trim();
+    if (parts[1]) {
+      regionName += ", " + (parts[1].strip ? parts[1].strip() : parts[1].trim());
+    }
+  }
+
   return (
     <>
       {open && <div className="tp-sidebar-overlay" onClick={onClose} aria-hidden />}
@@ -54,7 +65,7 @@ export function Sidebar({ open, onClose }) {
         <div className="tp-sidebar-foot">
           <div className="tp-sidebar-foot-card">
             <div className="tp-sidebar-foot-title">TerraPulse AI Network</div>
-            <div className="tp-sidebar-foot-sub">Active Node · Pune Region</div>
+            <div className="tp-sidebar-foot-sub">Active Node · {regionName}</div>
           </div>
         </div>
       </aside>

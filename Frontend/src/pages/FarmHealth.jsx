@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAsync } from "../hooks/useAsync.js";
 import { farmService, satelliteService, actionService } from "../services/api.js";
 import { FarmMap } from "../components/FarmMap.jsx";
+import { Markdown } from "../components/Markdown.jsx";
 import {
   Card, CardTitle, Badge, RiskBadge, Spinner, ErrorState, Skeleton, Tabs, HealthRing, Button
 } from "../components/ui.jsx";
@@ -218,17 +219,23 @@ export default function FarmHealth() {
           <div className="tp-grid tp-grid-2" style={{ gap: 20, marginBottom: 16 }}>
             <div style={{ padding: 12, background: "var(--tp-neutral-50)", borderRadius: 10, border: "2px solid #111827" }}>
               <h4 style={{ marginBottom: 6 }}>🛰️ NDVI Change Analysis</h4>
-              <p style={{ fontSize: "0.85rem", whiteSpace: "pre-line", color: "var(--tp-neutral-700)" }}>{advisoryData.changeExplanation}</p>
+              <div style={{ fontSize: "0.85rem", color: "var(--tp-neutral-700)" }}>
+                <Markdown content={advisoryData.changeExplanation} />
+              </div>
             </div>
             <div style={{ padding: 12, background: "var(--tp-neutral-50)", borderRadius: 10, border: "2px solid #111827" }}>
               <h4 style={{ marginBottom: 6 }}>🧠 Risk Factor Explanation</h4>
-              <p style={{ fontSize: "0.85rem", whiteSpace: "pre-line", color: "var(--tp-neutral-700)" }}>{advisoryData.riskExplanation}</p>
+              <div style={{ fontSize: "0.85rem", color: "var(--tp-neutral-700)" }}>
+                <Markdown content={advisoryData.riskExplanation} />
+              </div>
             </div>
           </div>
 
           <div style={{ padding: "16px", background: "var(--tp-green-50)", borderRadius: 12, border: "2.5px solid var(--tp-green-600)", marginBottom: 16 }}>
             <h4 style={{ color: "var(--tp-green-800)", marginBottom: 8 }}>📝 Grounded Agro-Advisory Guidelines</h4>
-            <p style={{ fontSize: "0.88rem", whiteSpace: "pre-line", lineHeight: 1.5, color: "var(--tp-neutral-900)" }}>{advisoryData.advisory}</p>
+            <div style={{ fontSize: "0.88rem", lineHeight: 1.5, color: "var(--tp-neutral-900)" }}>
+              <Markdown content={advisoryData.advisory} />
+            </div>
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>

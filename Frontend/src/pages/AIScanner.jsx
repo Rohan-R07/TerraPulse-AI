@@ -3,6 +3,7 @@ import {
   Card, CardTitle, Badge, Button, Tabs, Progress, ErrorState, Field, Select,
 } from "../components/ui.jsx";
 import { scannerService, actionService } from "../services/api.js";
+import { Markdown } from "../components/Markdown.jsx";
 import { languages, scannerProcessingSteps } from "../data/mockData.js";
 import {
   ScanLine, Upload, Image as ImageIcon, X, Leaf, Layers, CheckCircle2,
@@ -212,8 +213,8 @@ export default function AIScanner() {
                     )}
                   </div>
                   
-                  <div style={{ whiteSpace: "pre-line", fontSize: "0.86rem", lineHeight: 1.4, color: "var(--tp-neutral-700)", padding: 12, background: "var(--tp-neutral-50)", borderRadius: 10, border: "2px solid #111827" }}>
-                    {result.analysis}
+                  <div style={{ fontSize: "0.86rem", lineHeight: 1.4, color: "var(--tp-neutral-700)", padding: 12, background: "var(--tp-neutral-50)", borderRadius: 10, border: "2px solid #111827" }}>
+                    <Markdown content={result.analysis} />
                   </div>
                 </div>
               ) : (
@@ -225,8 +226,8 @@ export default function AIScanner() {
                     </div>
                   </div>
                   
-                  <div style={{ whiteSpace: "pre-line", fontSize: "0.86rem", lineHeight: 1.4, color: "var(--tp-neutral-700)", padding: 12, background: "var(--tp-neutral-50)", borderRadius: 10, border: "2px solid #111827" }}>
-                    {result.analysis}
+                  <div style={{ fontSize: "0.86rem", lineHeight: 1.4, color: "var(--tp-neutral-700)", padding: 12, background: "var(--tp-neutral-50)", borderRadius: 10, border: "2px solid #111827" }}>
+                    <Markdown content={result.analysis} />
                   </div>
                 </div>
               )}

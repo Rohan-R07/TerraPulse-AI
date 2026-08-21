@@ -4,6 +4,8 @@ from typing import List, Dict, Any, Optional
 from app.services.gemini_service import GeminiService
 from app.services.firestore_service import FirestoreService
 
+from app.services.weather_service import WeatherService
+
 router = APIRouter(tags=["Copilot & RAG"])
 
 class ChatRequest(BaseModel):
@@ -40,6 +42,7 @@ async def copilot_chat(request: ChatRequest):
         
         # Build messages and context structure
         messages_list = [{"role": "user", "content": request.message}]
+        weather = WeatherService.get_live_weather(field.get("location", "Pune, Maharashtra"))
         context_dict = {
             "farmName": "Green Valley Farm",
             "fieldName": field.get("fieldName", "West Field"),
@@ -50,10 +53,10 @@ async def copilot_chat(request: ChatRequest):
             "location": field.get("location", "Pune, Maharashtra"),
             "ndvi": field.get("ndvi", 0.54),
             "ndviTrend": field.get("ndviTrend", "Decreasing"),
-            "moisture": field.get("moisture", 28.0),
-            "temperature": field.get("temperature", 34.0),
-            "rainfall": "Low",
-            "forecast": "Dry for next 5 days",
+            "moisture": weather["moisture"],
+            "temperature": weather["temp"],
+            "rainfall": weather["rainfall"],
+            "forecast": weather["forecast"],
             "diseases": "None"
         }
         

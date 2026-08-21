@@ -4,6 +4,7 @@ from typing import Dict, Any
 from app.schemas.advisory import AdvisoryRequest, AdvisoryResponse
 from app.services.gemini_service import GeminiService
 from app.services.firestore_service import FirestoreService
+from app.services.weather_service import WeatherService
 
 logger = logging.getLogger("TerraPulseBackend.Advisory")
 router = APIRouter(prefix="/advisory", tags=["Advisory"])
@@ -24,10 +25,12 @@ def get_aggregated_context(field_id: str) -> dict:
         "location": "Pune, Maharashtra"
     }
     
-    # 2. Add weather & forecast context
-    # Standard Indian summer details
-    field["rainfall"] = "Low (8mm last week)"
-    field["forecast"] = "Dry and sunny, max 35°C, no rain for next 5 days"
+    # 2. Add weather & forecast context using live location
+    weather = WeatherService.get_live_weather(field.get("location", "Pune, Maharashtra"))
+    field["temperature"] = weather["temp"]
+    field["moisture"] = weather["moisture"]
+    field["rainfall"] = weather["rainfall"]
+    field["forecast"] = weather["forecast"]
     
     # 3. Add disease scan history context
     recent_scans = FirestoreService.get_recent_scans()
@@ -51,7 +54,8 @@ def get_aggregated_context(field_id: str) -> dict:
 
 @router.post("", response_model=AdvisoryResponse)
 async def generate_general_advisory(request: AdvisoryRequest):
-    # Backwards compatibility endpoint
+    # Fetch live weather for general advisory location
+    weather = WeatherService.get_live_weather(request.location)
     context = {
         "field_id": request.field_id,
         "fieldName": "West Field",
@@ -61,11 +65,11 @@ async def generate_general_advisory(request: AdvisoryRequest):
         "soilType": "Black Clay",
         "ndvi": request.ndvi,
         "ndviTrend": "Decreasing",
-        "moisture": request.moisture,
-        "temperature": request.temperature,
+        "moisture": weather["moisture"],
+        "temperature": weather["temp"],
         "location": request.location,
-        "rainfall": "Low (8mm last week)",
-        "forecast": "Dry for next 5 days",
+        "rainfall": weather["rainfall"],
+        "forecast": weather["forecast"],
         "diseases": request.diseases,
         "prevRecs": "Improve irrigation frequency",
         "recentActions": "None"
