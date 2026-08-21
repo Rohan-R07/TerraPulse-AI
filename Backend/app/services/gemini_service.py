@@ -10,9 +10,13 @@ from app.utils.audit import AIAuditor
 
 logger = logging.getLogger("TerraPulseBackend.Gemini")
 
-ALLOWED_GEMMA_MODELS = [
+ALLOWED_GOOGLE_MODELS = [
+    "openrouter/free",
+    "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
-    "google/gemma-4-31b-it:free"
+    "dots-studio/dots-3-note-preview:free",
+    "liquid/lfm-2.5-2.6b:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free"
 ]
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -20,10 +24,8 @@ class GeminiService:
     _initialized = False
 
     @staticmethod
-    def _openrouter_request(messages: list, timeout: int = 60, max_retries: int = 2) -> dict | None:
-        """Send a request to OpenRouter using ONLY the two specified Google Gemma 4 models:
-        - google/gemma-4-26b-a4b-it:free
-        - google/gemma-4-31b-it:free
+    def _openrouter_request(messages: list, timeout: int = 15, max_retries: int = 2) -> dict | None:
+        """Send a request to OpenRouter cycling through available Google and free AI models.
         Returns the parsed JSON response dict on success, or None on failure."""
         if not settings.OPENROUTER_API_KEY:
             return None
@@ -31,7 +33,7 @@ class GeminiService:
             "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
             "Content-Type": "application/json"
         }
-        for model_id in ALLOWED_GEMMA_MODELS:
+        for model_id in ALLOWED_GOOGLE_MODELS:
             payload = {
                 "model": model_id,
                 "messages": messages,
@@ -42,10 +44,16 @@ class GeminiService:
                     logger.info(f"Trying OpenRouter model: {model_id} (attempt {attempt}/{max_retries})")
                     resp = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=timeout)
                     if resp.status_code == 200:
-                        logger.info(f"OpenRouter SUCCESS with model: {model_id}")
                         res_json = resp.json()
-                        res_json["used_model"] = model_id
-                        return res_json
+                        choices = res_json.get("choices", [])
+                        if choices:
+                            msg = choices[0].get("message", {})
+                            text = msg.get("content") or msg.get("reasoning") or ""
+                            if text:
+                                logger.info(f"OpenRouter SUCCESS with model: {model_id}")
+                                res_json["used_model"] = model_id
+                                res_json["extracted_text"] = text.strip()
+                                return res_json
                     elif resp.status_code == 429:
                         wait = 2 ** attempt
                         logger.warning(f"OpenRouter 429 on {model_id} (attempt {attempt}/{max_retries}). Retrying in {wait}s...")
@@ -60,12 +68,14 @@ class GeminiService:
                 except Exception as ex:
                     logger.error(f"OpenRouter [{model_id}] exception: {ex}")
                     break
-        logger.error("OpenRouter exhausted both Google Gemma 4 models")
+        logger.error("OpenRouter exhausted all free models")
         return None
 
     @staticmethod
     def _extract_json_from_content(content: str) -> str:
-        """Strip markdown code fences from model output."""
+        """Extract JSON object string from model output text using regex."""
+        if not content:
+            return ""
         content = content.strip()
         if content.startswith("```json"):
             content = content[7:]
@@ -73,6 +83,9 @@ class GeminiService:
             content = content[3:]
         if content.endswith("```"):
             content = content[:-3]
+        match = re.search(r'\{.*\}', content.strip(), re.DOTALL)
+        if match:
+            return match.group(0).strip()
         return content.strip()
 
     @classmethod
@@ -96,17 +109,61 @@ class GeminiService:
             AIAuditor.log_operation(model_name, feature, field_id, "v1_plant_scan", latency, True)
             return fallback
 
+    @staticmethod
+    def _extract_visual_features(image_bytes: bytes) -> str:
+        """Analyze image pixels using Pillow to provide visual spectral attributes to AI models."""
+        try:
+            from PIL import Image
+            import io
+            img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            w, h = img.size
+            pixels = list(img.getdata())
+            total = len(pixels)
+            if total == 0:
+                return f"Image dimensions: {w}x{h} pixels."
+            
+            r_sum = sum(p[0] for p in pixels) / total
+            g_sum = sum(p[1] for p in pixels) / total
+            b_sum = sum(p[2] for p in pixels) / total
+            
+            greenness = (2 * g_sum - r_sum - b_sum) / (2 * g_sum + r_sum + b_sum + 1e-5)
+            yellowing = (r_sum + g_sum) / (2 * b_sum + 1e-5)
+            browning = (r_sum * 0.6 + g_sum * 0.4) / (b_sum + 1e-5)
+            
+            return (
+                f"Visual metrics of uploaded image: Resolution={w}x{h}, "
+                f"RGB Means=({r_sum:.1f}, {g_sum:.1f}, {b_sum:.1f}), "
+                f"Greenness Index={greenness:.3f}, Yellowing Ratio={yellowing:.2f}, Spot/Browning Ratio={browning:.2f}."
+            )
+        except Exception:
+            return f"Image size: {len(image_bytes)} bytes."
+
+    @classmethod
+    def generate_plant_diagnosis(cls, image_bytes: bytes, mime_type: str, crop: str = "Unknown", field_id: str = "Unknown", location: str = "Unknown", crop_stage: str = "Unknown") -> dict:
+        feature = "plant_scanner"
+        model_name = "openrouter/free"
+        start_time = time.time()
+        
+        if settings.TERRAPULSE_DEMO_MODE:
+            latency = (time.time() - start_time) * 1000
+            fallback = cls._get_plant_vision_fallback(crop)
+            AIAuditor.log_operation(model_name, feature, field_id, "v1_plant_scan", latency, True)
+            return fallback
+
+        visual_metrics = cls._extract_visual_features(image_bytes)
+
         prompt = f"""You are a plant pathology and crop diagnostic vision system. Analyze this plant leaf/crop image.
 Context details provided by farmer:
 - Crop type: {crop}
 - Field: {field_id}
 - Location: {location}
 - Crop Growth Stage: {crop_stage}
+- {visual_metrics}
 
 You must return a JSON object conforming exactly to this structure:
 {{
   "diagnosis": "name of disease or physical condition. If healthy, state 'Healthy Crop'",
-  "confidence": 0.0 to 1.0 (float confidence score),
+  "confidence": 0.85,
   "severity": "low" or "moderate" or "high" or "critical",
   "symptoms": ["list of visible plant symptoms observed"],
   "possible_causes": ["list of environmental, biological, nutrient, or pathogen causes"],
@@ -132,11 +189,11 @@ Strict rules:
                         {"type": "image_url", "image_url": {"url": f"data:{mime_type or 'image/jpeg'};base64,{img_b64}"}}
                     ]
                 }]
-                logger.info("Sending plant image to OpenRouter (Gemma 4 models)")
+                logger.info("Sending plant image to OpenRouter models")
                 resp_json = cls._openrouter_request(messages, timeout=60)
                 if resp_json:
-                    used_model = resp_json.get("used_model", "google/gemma-4-31b-it:free")
-                    content = resp_json["choices"][0]["message"]["content"]
+                    used_model = resp_json.get("used_model", "openrouter/free")
+                    content = resp_json.get("extracted_text") or resp_json["choices"][0]["message"].get("content") or ""
                     content = cls._extract_json_from_content(content)
                     res_dict = json.loads(content)
                     res_dict["source"] = "openrouter"
@@ -162,7 +219,6 @@ Strict rules:
             
             latency = (time.time() - start_time) * 1000
             data = json.loads(response.text.strip())
-            # Ensure required keys exist
             data["source"] = "live"
             data["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
             AIAuditor.log_operation(model_name, feature, field_id, "v1_plant_scan", latency, True)
@@ -179,7 +235,7 @@ Strict rules:
     @classmethod
     def generate_soil_diagnosis(cls, image_bytes: bytes, mime_type: str) -> dict:
         feature = "soil_scanner"
-        model_name = "gemini-1.5-flash"
+        model_name = "openrouter/free"
         start_time = time.time()
         
         if settings.TERRAPULSE_DEMO_MODE:
@@ -188,9 +244,12 @@ Strict rules:
             AIAuditor.log_operation(model_name, feature, "Unknown", "v1_soil_scan", latency, True)
             return fallback
 
-        prompt = """You are a soil conservation and agronomic soil visual inspection assistant. Analyze this soil image.
+        visual_metrics = cls._extract_visual_features(image_bytes)
+
+        prompt = f"""You are a soil conservation and agronomic soil visual inspection assistant. Analyze this soil image.
+{visual_metrics}
 You must return a JSON object conforming exactly to this structure:
-{
+{{
   "soil_condition": "description of visible soil texture, moisture, structure, and type",
   "degradation_indicators": ["list of visible signs of erosion, salinity, scaling, or cracking"],
   "compaction_indicators": ["list of indicators showing potential soil compaction or lack of aeration"],
@@ -199,7 +258,7 @@ You must return a JSON object conforming exactly to this structure:
   "recommended_tests": ["list of recommended wet-lab soil chemical/biological tests"],
   "regenerative_practices": ["list of soil-building regenerative suggestions like cover cropping, zero-till"],
   "disclaimer": "Visual estimation only. This tool does not replace a wet-lab chemical soil test."
-}
+}}
 
 Strict rules:
 1. Return ONLY the raw JSON block. No markdown wrapper (like ```json), no explaining text.
@@ -217,11 +276,11 @@ Strict rules:
                         {"type": "image_url", "image_url": {"url": f"data:{mime_type or 'image/jpeg'};base64,{img_b64}"}}
                     ]
                 }]
-                logger.info("Sending soil image to OpenRouter (Gemma 4 models)")
+                logger.info("Sending soil image to OpenRouter models")
                 resp_json = cls._openrouter_request(messages, timeout=60)
                 if resp_json:
-                    used_model = resp_json.get("used_model", "google/gemma-4-31b-it:free")
-                    content = resp_json["choices"][0]["message"]["content"]
+                    used_model = resp_json.get("used_model", "openrouter/free")
+                    content = resp_json.get("extracted_text") or resp_json["choices"][0]["message"].get("content") or ""
                     content = cls._extract_json_from_content(content)
                     res_dict = json.loads(content)
                     res_dict["source"] = "openrouter"

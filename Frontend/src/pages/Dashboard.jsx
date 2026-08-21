@@ -59,11 +59,31 @@ export default function Dashboard() {
         navigator.geolocation.getCurrentPosition(async (position) => {
           const { latitude, longitude } = position.coords;
           try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            // Try BigDataCloud free reverse geocoding first (No CORS / User-Agent issues)
+            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
             if (res.ok) {
               const data = await res.json();
-              const address = data.address;
-              const city = address.city || address.town || address.village || address.suburb || "";
+              const city = data.city || data.locality || data.localityInfo?.administrative?.[2]?.name || "";
+              const state = data.principalSubdivision || data.localityInfo?.administrative?.[1]?.name || "";
+              const country = data.countryName || "";
+              const displayLoc = [city, state, country].filter(Boolean).join(", ");
+              if (displayLoc) {
+                resolve(displayLoc);
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn("BigDataCloud geocoding failed, trying Nominatim...", e);
+          }
+
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`, {
+              headers: { "Accept-Language": "en" }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const address = data.address || {};
+              const city = address.city || address.town || address.village || address.suburb || address.county || "";
               const state = address.state || "";
               const country = address.country || "";
               const displayLoc = [city, state, country].filter(Boolean).join(", ");
@@ -73,17 +93,17 @@ export default function Dashboard() {
               }
             }
           } catch (e) {
-            console.warn("Nominatim reverse geocoding failed, trying fallback...", e);
+            console.warn("Nominatim geocoding failed...", e);
           }
-          resolve(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          resolve(`${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°`);
         }, async (err) => {
           console.warn("GPS Geolocation failed/denied, trying IP geolocation...", err);
           try {
-            const res = await fetch("https://ipapi.co/json/");
+            const res = await fetch("https://geolocation-db.com/json/");
             if (res.ok) {
               const ipData = await res.json();
-              const displayLoc = [ipData.city, ipData.region, ipData.country_name].filter(Boolean).join(", ");
-              if (displayLoc) {
+              const displayLoc = [ipData.city, ipData.state, ipData.country_name].filter(Boolean).join(", ");
+              if (displayLoc && displayLoc !== "Not found") {
                 resolve(displayLoc);
                 return;
               }
@@ -92,7 +112,7 @@ export default function Dashboard() {
             console.warn("IP Geolocation failed:", ipErr);
           }
           resolve("Pune, Maharashtra");
-        }, { enableHighAccuracy: true, timeout: 5000 });
+        }, { enableHighAccuracy: true, timeout: 10000 });
       } else {
         resolve("Pune, Maharashtra");
       }
