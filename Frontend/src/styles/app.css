@@ -108,6 +108,7 @@
   letter-spacing: 0.01em;
   border: 2px solid #111827;
   box-shadow: 1px 1px 0px #111827;
+  white-space: nowrap;
 }
 .tp-badge-success { background: var(--tp-green-100); color: #14532d; }
 .tp-badge-warning { background: #fffbeb; color: #b45309; }

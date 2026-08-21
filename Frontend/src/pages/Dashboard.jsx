@@ -197,13 +197,24 @@ export default function Dashboard() {
               <div className="tp-stack" style={{ gap: 4 }}>
                 <span className="tp-stat-label">Farm health</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Badge variant="success">{overview.data.status}</Badge>
-                  <span className="tp-hint" style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--tp-green-600)" }}>
+                  <Badge variant={overview.data.status === "Healthy" ? "success" : "error"}>
+                    {overview.data.status}
+                  </Badge>
+                  <span className="tp-badge tp-badge-neutral" style={{ fontSize: "0.62rem", padding: "2px 6px", border: "1.5px solid #111827", boxShadow: "none", textTransform: "uppercase" }}>
                     {overview.data.dataSource?.includes("LIVE") ? "LIVE" : "DEMO"}
                   </span>
                 </div>
-                <span className="tp-hint" style={{ color: "var(--tp-green-600)", fontWeight: 600 }}>
-                  ▲ {overview.data.healthTrend || 4}% this month
+                <span 
+                  className="tp-hint" 
+                  style={{ 
+                    color: overview.data.healthTrend === "Decreasing" ? "var(--tp-error)" : "var(--tp-green-600)", 
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4
+                  }}
+                >
+                  {overview.data.healthTrend === "Decreasing" ? "▼" : "▲"} {overview.data.healthTrend || "Stable"} this month
                 </span>
               </div>
             </div>
