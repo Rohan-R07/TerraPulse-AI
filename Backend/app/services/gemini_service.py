@@ -69,7 +69,7 @@ Strict rules:
                     "Content-Type": "application/json"
                 }
                 data = {
-                    "model": "nvidia/nemotron-nano-12b-v2-vl:free",
+                    "model": "google/gemma-4-26b-a4b-it:free",
                     "messages": [
                         {
                             "role": "user",
@@ -98,7 +98,7 @@ Strict rules:
                     res_dict["source"] = "openrouter"
                     res_dict["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
                     latency = (time.time() - start_time) * 1000
-                    AIAuditor.log_operation("nvidia/nemotron-nano-12b-v2-vl:free", feature, field_id, "v1_plant_scan", latency, True)
+                    AIAuditor.log_operation("google/gemma-4-26b-a4b-it:free", feature, field_id, "v1_plant_scan", latency, True)
                     return res_dict
                 else:
                     logger.error(f"OpenRouter response failed with status {response.status_code}: {response.text}")
@@ -173,7 +173,7 @@ Strict rules:
                     "Content-Type": "application/json"
                 }
                 data = {
-                    "model": "nvidia/nemotron-nano-12b-v2-vl:free",
+                    "model": "google/gemma-4-26b-a4b-it:free",
                     "messages": [
                         {
                             "role": "user",
@@ -202,7 +202,7 @@ Strict rules:
                     res_dict["source"] = "openrouter"
                     res_dict["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
                     latency = (time.time() - start_time) * 1000
-                    AIAuditor.log_operation("nvidia/nemotron-nano-12b-v2-vl:free", feature, "Unknown", "v1_soil_scan", latency, True)
+                    AIAuditor.log_operation("google/gemma-4-26b-a4b-it:free", feature, "Unknown", "v1_soil_scan", latency, True)
                     return res_dict
                 else:
                     logger.error(f"OpenRouter response failed with status {response.status_code}: {response.text}")

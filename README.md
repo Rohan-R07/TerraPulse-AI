@@ -101,7 +101,7 @@ TerraPulse AI provides an intuitive, high-performance platform that unifies real
 
 > **Note on Architecture:** The application operates in dual-mode (Toggleable between **DEMO** and **LIVE** mode from the Topbar). 
 > - **DEMO Mode:** Front-end queries intercept requests to return high-fidelity local datasets instantly.
-> - **LIVE Mode:** Requests route to the production FastAPI backend. The backend uses OpenRouter (Gemma / Nemotron VL free-tier models) for image scans and the official Google Gemini SDK for advisory diagnostics, falling back to mock schemas gracefully on API failures.
+> - **LIVE Mode:** Requests route to the production FastAPI backend. The backend uses OpenRouter (Gemma 4 free-tier multimodal model) for image scans and the official Google Gemini SDK for advisory diagnostics, falling back to mock schemas gracefully on API failures.
 
 ---
 
@@ -118,7 +118,7 @@ TerraPulse AI provides an intuitive, high-performance platform that unifies real
 ### Backend
 - **Framework:** [FastAPI](https://fastapi.tiangolo.com/) (Python 3.10+)
 - **WSGI/ASGI Server:** [Uvicorn](https://www.uvicorn.org/)
-- **AI Integrations:** Official `google-generativeai` SDK (Gemini) & [OpenRouter API](https://openrouter.ai/) (`google/gemma-4-26b-a4b-it:free` and `nvidia/nemotron-nano-12b-v2-vl:free` vision model).
+- **AI Integrations:** Official `google-generativeai` SDK (Gemini) & [OpenRouter API](https://openrouter.ai/) (`google/gemma-4-26b-a4b-it:free` multimodal model).
 - **Environment Management:** `Pydantic-Settings` for secure, type-safe config loading.
 - **Database / Cache Adapters:** Firestore & Local fallback engines.
 - **Testing:** Complete `pytest` suite covering carbon calculations, telemetry aggregation, and risk analysis.
@@ -254,7 +254,7 @@ VITE_ENABLE_MOCK_SERVICES=true
 | **Landing Page** | ✅ **Completed** | Feature showcase, problem statement, CTA navigation |
 | **Executive Dashboard** | ✅ **Completed** | Interactive metric summaries, Recharts graphs, field switcher |
 | **Farm Health Satellite View** | ✅ **Completed** | Dual-layer NDVI / Soil Moisture map toggle & satellite provider selector |
-| **AI Disease & Soil Scanner** | ✅ **Completed** | Interactive upload & diagnostic workflow powered by OpenRouter free-tier vision model (`nemotron-nano-vl`) |
+| **AI Disease & Soil Scanner** | ✅ **Completed** | Interactive upload & diagnostic workflow powered by OpenRouter free-tier multimodal model (`google/gemma-4-26b-a4b-it:free`) |
 | **Carbon Simulator** | ✅ **Completed** | 3-year crop rotation builder with 5-year SOC & carbon credit math engine |
 | **Service Layer Abstraction** | ✅ **Completed** | Asynchronous service contracts (`api.js`) fully integrated with the FastAPI backend |
 | **Backend REST API** | ✅ **Completed** | High-performance FastAPI server with 11 router endpoints, integrated config loaders, and schema validation |
