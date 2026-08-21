@@ -1,10 +1,7 @@
 import * as mock from "../data/mockData.js";
 import { auth } from "./firebase.js";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-  (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
-    ? "/api/v1" 
-    : "http://localhost:8000/api/v1");
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
 // Helper: safe fetch with fallback to mock data
 async function safeFetch(endpoint, options = {}, fallbackData = null) {
@@ -29,7 +26,9 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
   try {
     const url = `${BASE_URL}${endpoint}`;
     const res = await fetch(url, { ...options, headers });
-    if (!res.ok) {
+    const contentType = res.headers.get("content-type") || "";
+
+    if (!res.ok || contentType.includes("text/html")) {
       const errBody = await res.text();
       let msg = `API error ${res.status}`;
       try {
@@ -38,7 +37,12 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
       } catch (_) {}
       throw new Error(msg);
     }
-    return await res.json();
+
+    const textData = await res.text();
+    if (textData.trim().startsWith("<")) {
+      throw new Error("Backend returned HTML page instead of JSON.");
+    }
+    return JSON.parse(textData);
   } catch (err) {
     console.warn(`Backend API failed for ${endpoint}: ${err.message}. Using fallback data.`);
     if (fallbackData !== null) {
