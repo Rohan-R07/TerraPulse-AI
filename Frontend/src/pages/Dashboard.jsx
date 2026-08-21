@@ -192,15 +192,15 @@ export default function Dashboard() {
           {overview.loading ? (
             <div style={{ display: "flex", justifyContent: "center", padding: 16 }}><Spinner /></div>
           ) : overview.data ? (
-            <div className="tp-row" style={{ gap: 16 }}>
-              <HealthRing value={overview.data.healthScore} />
-              <div className="tp-stack" style={{ gap: 4 }}>
-                <span className="tp-stat-label">Farm health</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, textAlign: "center" }}>
+              <HealthRing value={overview.data.healthScore} size={90} />
+              <div className="tp-stack" style={{ gap: 4, alignItems: "center" }}>
+                <span className="tp-stat-label" style={{ fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.03em" }}>Farm health</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
                   <Badge variant={overview.data.status === "Healthy" ? "success" : "error"}>
                     {overview.data.status}
                   </Badge>
-                  <span className="tp-badge tp-badge-neutral" style={{ fontSize: "0.62rem", padding: "2px 6px", border: "1.5px solid #111827", boxShadow: "none", textTransform: "uppercase" }}>
+                  <span className="tp-badge tp-badge-neutral" style={{ fontSize: "0.6rem", padding: "1px 5px", border: "1.5px solid #111827", boxShadow: "none", textTransform: "uppercase" }}>
                     {overview.data.dataSource?.includes("LIVE") ? "LIVE" : "DEMO"}
                   </span>
                 </div>
@@ -209,6 +209,7 @@ export default function Dashboard() {
                   style={{ 
                     color: overview.data.healthTrend === "Decreasing" ? "var(--tp-error)" : "var(--tp-green-600)", 
                     fontWeight: 700,
+                    fontSize: "0.75rem",
                     display: "flex",
                     alignItems: "center",
                     gap: 4
