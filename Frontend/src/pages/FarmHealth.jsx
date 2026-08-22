@@ -142,7 +142,7 @@ export default function FarmHealth() {
       ndvi: ndvi,
       previousNdvi: previousNdvi,
       ndviChange: ndviChange,
-      soilMoisture: selected?.moisture || 35,
+      soilMoisture: isLive ? Math.round(ndvi * 50 + 15) : (selected?.moisture || 35),
       temperature: 34,
       rainfall: 8,
       humidity: 35,
@@ -154,9 +154,11 @@ export default function FarmHealth() {
       status: isLive ? (geeData.status || ndviStatus) : (selected?.stress || ndviStatus),
       geometry: isCustom ? { type: "Polygon", coordinates: [customPolygonCoords] } : null,
       area: fieldArea,
-      validPixelCount: isLive ? (geeData.valid_pixel_count || 45) : 45
+      validPixelCount: isLive ? (geeData.valid_pixel_count || 45) : 45,
+      health: isLive ? Math.round(ndvi * 100) : (selected?.health || 75),
+      risk: isLive ? (advisoryData ? advisoryData.riskStatus : "Low") : (selected?.risk || "Low")
     };
-  }, [selected, geeMode, geeData, date, customPolygonCoords, polygonArea]);
+  }, [selected, geeMode, geeData, date, customPolygonCoords, polygonArea, advisoryData]);
 
   // Load Google Maps Script
   useEffect(() => {
@@ -773,7 +775,13 @@ export default function FarmHealth() {
             <Button
               variant="primary"
               onClick={handleGenerateAdvisory}
-              disabled={advisoryLoading || (geeMode === "live" && !customPolygonCoords && selectedId === null)}
+              disabled={
+                advisoryLoading || 
+                (geeMode === "live" && (
+                  (!customPolygonCoords && selectedId === null) || 
+                  (!geeData || geeData.image_available === false)
+                ))
+              }
               style={{ width: "100%", fontWeight: 700 }}
             >
               {advisoryLoading ? <Spinner size={16} /> : "Analyze Selected Field"}
@@ -803,7 +811,7 @@ export default function FarmHealth() {
                   <h3 style={{ marginBottom: 2 }}>{currentFieldTelemetry.fieldName}</h3>
                   <span className="tp-hint">{currentFieldTelemetry.area} ac · {selected?.soilType || "Clay"}</span>
                 </div>
-                <HealthRing value={selected?.health || 75} size={92} />
+                <HealthRing value={currentFieldTelemetry.health} size={92} />
               </div>
               <div className="tp-grid tp-grid-3">
                 <Metric label={t("labels.crop")} value={currentFieldTelemetry.crop} />
@@ -825,7 +833,7 @@ export default function FarmHealth() {
                       : currentFieldTelemetry.status
                   } 
                 />
-                <div className="tp-stat"><span className="tp-stat-label">{t("labels.status")}</span><div style={{ marginTop: 4 }}><RiskBadge risk={selected?.risk || "Low"} /></div></div>
+                <div className="tp-stat"><span className="tp-stat-label">{t("labels.status")}</span><div style={{ marginTop: 4 }}><RiskBadge risk={currentFieldTelemetry.risk} /></div></div>
               </div>
               
               {/* Mixed Land Cover / Urban Warning */}
