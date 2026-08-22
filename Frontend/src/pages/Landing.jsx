@@ -10,7 +10,7 @@ import { useTranslation } from "../hooks/useTranslation.jsx";
 
 export default function Landing() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { t } = useTranslation();
+  const { t, shortCode, changeLanguage } = useTranslation();
 
   return (
     <div className="landing">
@@ -25,7 +25,19 @@ export default function Landing() {
             <a href="#preview">{t("landing.nav.preview")}</a>
             <Link to="/dashboard">{t("landing.nav.dashboard")}</Link>
           </div>
-          <div className="landing-nav-cta">
+          <div className="landing-nav-cta" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <select
+              value={shortCode}
+              onChange={(e) => changeLanguage(e.target.value)}
+              className="tp-select"
+              style={{ width: "auto", padding: "4px 8px", fontSize: "0.85rem", height: 36, border: "2.5px solid #111827", borderRadius: 8, background: "#ffffff", fontWeight: 700 }}
+            >
+              <option value="en">English</option>
+              <option value="hi">हिन्दी (Hindi)</option>
+              <option value="bn">বাংলা (Bengali)</option>
+              <option value="mr">मराठी (Marathi)</option>
+              <option value="kn">ಕನ್ನಡ (Kannada)</option>
+            </select>
             <Link to="/dashboard" className="tp-btn tp-btn-primary">{t("landing.nav.launch")} <ArrowRight size={16} /></Link>
           </div>
           <button className="landing-nav-mobile tp-btn tp-btn-ghost" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">
@@ -38,6 +50,21 @@ export default function Landing() {
             <a href="#how" onClick={() => setMobileOpen(false)}>{t("landing.nav.howItWorks")}</a>
             <a href="#preview" onClick={() => setMobileOpen(false)}>{t("landing.nav.preview")}</a>
             <Link to="/dashboard" onClick={() => setMobileOpen(false)}>{t("landing.nav.dashboard")}</Link>
+            <select
+              value={shortCode}
+              onChange={(e) => {
+                changeLanguage(e.target.value);
+                setMobileOpen(false);
+              }}
+              className="tp-select"
+              style={{ width: "100%", padding: "6px 12px", fontSize: "0.9rem", height: 38, border: "2.5px solid #111827", borderRadius: 8, background: "#ffffff", fontWeight: 700, margin: "8px 0" }}
+            >
+              <option value="en">English</option>
+              <option value="hi">हिन्दी (Hindi)</option>
+              <option value="bn">বাংলা (Bengali)</option>
+              <option value="mr">मराठी (Marathi)</option>
+              <option value="kn">ಕನ್ನಡ (Kannada)</option>
+            </select>
             <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="tp-btn tp-btn-primary" style={{ justifyContent: "center" }}>{t("landing.nav.launch")}</Link>
           </div>
         )}
