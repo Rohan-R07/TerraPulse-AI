@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAsync } from "../hooks/useAsync.js";
 import { farmService, satelliteService, actionService } from "../services/api.js";
 import { FarmMap } from "../components/FarmMap.jsx";
@@ -41,56 +41,113 @@ export default function FarmHealth() {
 
   const selected = fieldsQ.data?.find((f) => f.id === selectedId) || fieldsQ.data?.[0];
 
-  // Fetch GEE data when field, date or mode changes
+  // Authoritative dynamic telemetry object for the selected field
+  const currentFieldTelemetry = useMemo(() => {
+    if (!selected) return null;
+    
+    const isLive = geeMode === "live" && geeData && geeData.image_available !== false;
+    const ndvi = isLive ? geeData.ndvi : selected.ndvi;
+    const previousNdvi = isLive ? (geeData.prevNdvi || selected.ndvi) : selected.ndvi;
+    const ndviChange = previousNdvi > 0 ? +(((ndvi - previousNdvi) / previousNdvi) * 100).toFixed(1) : 0;
+    
+    const ndviStatus = ndvi >= 0.7 ? "Healthy" : ndvi >= 0.5 ? "Moderate stress" : "Vegetation stress detected";
+    
+    return {
+      fieldId: selected.id,
+      fieldName: selected.name,
+      crop: selected.crop,
+      ndvi: ndvi,
+      previousNdvi: previousNdvi,
+      ndviChange: ndviChange,
+      soilMoisture: selected.moisture,
+      temperature: 34,
+      rainfall: 8,
+      humidity: 35,
+      satellite: "Sentinel-2",
+      requestedDate: date,
+      actualImageDate: isLive ? (geeData.actual_image_date || geeData.acquisitionDate) : date,
+      cloudPercentage: isLive ? geeData.cloudCover : 1.2,
+      dataSource: isLive ? "LIVE — Google Earth Engine" : "DEMO — Sentinel-2 Sample Dataset",
+      status: isLive ? (geeData.status || ndviStatus) : (selected.stress || ndviStatus)
+    };
+  }, [selected, geeMode, geeData, date]);
+
+  // Fetch GEE data when field, date or mode changes with race condition protection
   useEffect(() => {
-    if (selectedId) {
-      setGeeLoading(true);
-      satelliteService.getSatelliteData(selectedId, geeMode === "live", date)
-        .then(res => {
+    if (!selectedId) return;
+    
+    let active = true;
+    setGeeLoading(true);
+    setGeeData(null); // Invalidate telemetry immediately on selection change
+    
+    satelliteService.getSatelliteData(selectedId, geeMode === "live", date)
+      .then(res => {
+        if (active) {
           setGeeData(res);
           setGeeLoading(false);
-        })
-        .catch(() => setGeeLoading(false));
-    }
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setGeeLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [selectedId, geeMode, date]);
 
+  // Invalidate stale advisories immediately on any configuration change
+  useEffect(() => {
+    setAdvisoryData(null);
+    setActionLogged(false);
+  }, [selectedId, geeMode, date, source]);
+
+  // Auto-reset source to Sentinel-2 if GEE Live mode is toggled with unsupported options selected
+  useEffect(() => {
+    if (geeMode === "live" && source !== "sentinel2") {
+      setSource("sentinel2");
+    }
+  }, [geeMode, source]);
+
   const handleGenerateAdvisory = async () => {
-    if (!selected) return;
+    if (!selected || !currentFieldTelemetry) return;
     setAdvisoryLoading(true);
     setActionLogged(false);
     try {
-      // 1. NDVI change explanation
+      // 1. NDVI change explanation (Strict telemetry matching)
       const ndviChangeRes = await satelliteService.ndviChangeDetection({
-        field_id: selected.name,
-        prev_ndvi: geeData?.prevNdvi || 0.72,
-        current_ndvi: geeData?.ndvi || selected.ndvi,
-        crop: selected.crop,
-        moisture: selected.moisture,
-        temperature: 34
+        field_id: currentFieldTelemetry.fieldId,
+        prev_ndvi: currentFieldTelemetry.previousNdvi,
+        current_ndvi: currentFieldTelemetry.ndvi,
+        crop: currentFieldTelemetry.crop,
+        moisture: currentFieldTelemetry.soilMoisture,
+        temperature: currentFieldTelemetry.temperature
       });
 
-      // 2. Risk Engine calculation
+      // 2. Risk Engine calculation (Strict telemetry matching)
       const riskRes = await satelliteService.calculateRisk({
-        ndvi: geeData?.ndvi || selected.ndvi,
+        ndvi: currentFieldTelemetry.ndvi,
         ndvi_change: ndviChangeRes.changePct,
-        moisture: selected.moisture,
-        temperature: 34,
-        rainfall: 8,
-        crop: selected.crop,
+        moisture: currentFieldTelemetry.soilMoisture,
+        temperature: currentFieldTelemetry.temperature,
+        rainfall: currentFieldTelemetry.rainfall,
+        crop: currentFieldTelemetry.crop,
         crop_stage: "Flowering",
         soil_type: selected.soilType,
-        diseases: selected.stress.includes("stress") ? "Water stress" : "None"
+        diseases: currentFieldTelemetry.ndvi < 0.5 ? "Water stress" : "None"
       });
 
-      // 3. Complete advisory
+      // 3. Complete advisory (Strict telemetry matching)
       const advisoryRes = await satelliteService.getAdvisory({
-        field_id: selected.name,
-        crop: selected.crop,
+        field_id: currentFieldTelemetry.fieldId,
+        crop: currentFieldTelemetry.crop,
         crop_stage: "Flowering",
-        ndvi: geeData?.ndvi || selected.ndvi,
-        moisture: selected.moisture,
-        temperature: 34,
-        diseases: selected.stress,
+        ndvi: currentFieldTelemetry.ndvi,
+        moisture: currentFieldTelemetry.soilMoisture,
+        temperature: currentFieldTelemetry.temperature,
+        diseases: currentFieldTelemetry.ndvi < 0.7 ? (currentFieldTelemetry.ndvi < 0.5 ? "High stress" : "Moderate stress") : "None",
         location: "Pune, Maharashtra"
       });
 
@@ -111,10 +168,10 @@ export default function FarmHealth() {
   };
 
   const handleLogAction = async () => {
-    if (!selected || !advisoryData) return;
+    if (!selected || !advisoryData || !currentFieldTelemetry) return;
     try {
       await actionService.createAction({
-        field: selected.name,
+        field: currentFieldTelemetry.fieldName,
         recommendation: `Irrigate and implement AWD conservation (AI Risk: ${advisoryData.riskScore}/100)`,
         priority: advisoryData.riskStatus === "HIGH" || advisoryData.riskStatus === "CRITICAL" ? "High" : "Medium",
         dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -168,11 +225,25 @@ export default function FarmHealth() {
                 <HealthRing value={selected.health} size={92} />
               </div>
               <div className="tp-grid tp-grid-3">
-                <Metric label={t("labels.crop")} value={selected.crop} />
-                <Metric label="NDVI" value={geeData && geeData.image_available !== false ? geeData.ndvi.toFixed(2) : selected.ndvi.toFixed(2)} />
-                <Metric label={t("labels.soilMoisture")} value={`${selected.moisture}%`} />
+                <Metric label={t("labels.crop")} value={currentFieldTelemetry.crop} />
+                <Metric 
+                  label="NDVI" 
+                  value={
+                    geeMode === "live"
+                      ? (geeData && geeData.image_available !== false ? currentFieldTelemetry.ndvi.toFixed(2) : "N/A")
+                      : currentFieldTelemetry.ndvi.toFixed(2)
+                  } 
+                />
+                <Metric label={t("labels.soilMoisture")} value={`${currentFieldTelemetry.soilMoisture}%`} />
                 <Metric label={t("labels.vegetation", "Vegetation")} value={selected.vegetation} />
-                <Metric label={t("labels.stress", "Stress")} value={geeData && geeData.image_available !== false ? geeData.status : selected.stress} />
+                <Metric 
+                  label={t("labels.stress", "Stress")} 
+                  value={
+                    geeMode === "live"
+                      ? (geeData && geeData.image_available !== false ? currentFieldTelemetry.status : "N/A")
+                      : currentFieldTelemetry.status
+                  } 
+                />
                 <div className="tp-stat"><span className="tp-stat-label">{t("labels.status")}</span><div style={{ marginTop: 4 }}><RiskBadge risk={selected.risk} /></div></div>
               </div>
               <div>
@@ -183,14 +254,22 @@ export default function FarmHealth() {
               </div>
 
               <div style={{ marginTop: 12, paddingTop: 12, borderTop: "2px dashed var(--tp-neutral-200)" }}>
-                <Button
-                  variant="primary"
-                  onClick={handleGenerateAdvisory}
-                  disabled={advisoryLoading}
-                  style={{ width: "100%" }}
-                >
-                  {advisoryLoading ? <Spinner size={16} /> : t("buttons.runAdvisory", "Run AI Advisory & Risk Engine")}
-                </Button>
+                {geeLoading ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}><Spinner size={20} /></div>
+                ) : geeMode === "live" && (!geeData || geeData.image_available === false) ? (
+                  <div style={{ padding: "8px 12px", background: "var(--tp-error-50)", border: "2.5px solid var(--tp-error-600)", borderRadius: 8, color: "var(--tp-error-800)", fontSize: "0.82rem", fontWeight: 700, textAlign: "center" }}>
+                    Live satellite data is currently unavailable.
+                  </div>
+                ) : (
+                  <Button
+                    variant="primary"
+                    onClick={handleGenerateAdvisory}
+                    disabled={advisoryLoading}
+                    style={{ width: "100%" }}
+                  >
+                    {advisoryLoading ? <Spinner size={16} /> : t("buttons.runAdvisory", "Run AI Advisory & Risk Engine")}
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -299,7 +378,11 @@ export default function FarmHealth() {
           <div className="tp-field">
             <label className="tp-label">{t("labels.dataSource", "Data source")}</label>
             <select className="tp-select" value={source} onChange={(e) => setSource(e.target.value)}>
-              {satelliteSources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {satelliteSources.map((s) => (
+                <option key={s.id} value={s.id} disabled={geeMode === "live" && s.id !== "sentinel2"}>
+                  {s.name} {geeMode === "live" && s.id !== "sentinel2" ? " (Live unsupported)" : ""}
+                </option>
+              ))}
             </select>
             <span className="tp-hint">{satelliteSources.find((s) => s.id === source)?.resolution} · {satelliteSources.find((s) => s.id === source)?.revisit} revisit</span>
           </div>
@@ -324,7 +407,7 @@ export default function FarmHealth() {
             </select>
             <span className="tp-hint">
               <Calendar size={11} style={{ display: "inline", verticalAlign: "middle" }} />{" "}
-              {geeData && geeData.image_available !== false ? (
+              {geeMode === "live" && geeData && geeData.image_available !== false ? (
                 <>
                   Actual: {geeData.actual_image_date || geeData.acquisitionDate}
                 </>
@@ -335,10 +418,28 @@ export default function FarmHealth() {
           </div>
         </div>
         
-        {geeData?.image_available === false && (
-          <div style={{ marginTop: 12, padding: "10px 14px", background: "var(--tp-warning-50)", border: "2px solid var(--tp-warning-600)", borderRadius: 8, color: "var(--tp-warning-800)", fontSize: "0.84rem", display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
+        {/* Live GEE Telemetry Metadata Panel */}
+        {geeMode === "live" && geeData && geeData.image_available !== false && (
+          <div style={{ marginTop: 12, padding: 12, background: "var(--tp-green-50)", border: "2px solid #111827", borderRadius: 8, fontSize: "0.82rem" }}>
+            <div style={{ fontWeight: 700, textTransform: "uppercase", fontSize: "0.74rem", color: "var(--tp-green-800)", marginBottom: 6 }}>🛰️ Google Earth Engine Active Telemetry Metadata</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+              <div><strong>Source:</strong> Google Earth Engine</div>
+              <div><strong>Satellite:</strong> Sentinel-2</div>
+              <div><strong>Dataset:</strong> COPERNICUS/S2_SR_HARMONIZED</div>
+              <div><strong>Cloud Cover:</strong> {geeData.cloudCover}%</div>
+              <div><strong>Requested Date:</strong> {geeData.requested_date}</div>
+              <div><strong>Actual Image Date:</strong> {geeData.actual_image_date}</div>
+              <div><strong>NDVI Result:</strong> {geeData.ndvi}</div>
+              <div><strong>Valid Area Pixels:</strong> {geeData.valid_pixel_count} / {geeData.pixel_count}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Strict GEE Failure Warning Banner */}
+        {geeMode === "live" && (!geeData || geeData.image_available === false) && (
+          <div style={{ marginTop: 12, padding: "10px 14px", background: "var(--tp-error-50)", border: "2px solid var(--tp-error-600)", borderRadius: 8, color: "var(--tp-error-800)", fontSize: "0.84rem", display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
             <AlertTriangle size={16} />
-            <span>{geeData.message || "No suitable Sentinel-2 image was available for the selected date. Showing fallback demo data."}</span>
+            <span>{geeData?.message || "Live satellite data is currently unavailable."}</span>
           </div>
         )}
         
@@ -349,19 +450,36 @@ export default function FarmHealth() {
             </span>
           ) : (
             <>
-              <Badge variant={geeData?.isLive ? "success" : "info"}>
-                <Satellite size={12} /> {geeData?.dataSource || "Sentinel-2"}
+              <Badge variant={geeMode === "live" ? "success" : "info"}>
+                <Satellite size={12} /> {geeMode === "live" ? "LIVE — Google Earth Engine (Sentinel-2)" : "DEMO — Sentinel-2 Sample Dataset"}
               </Badge>
               <Badge variant="neutral">{satelliteLayers.find((l) => l.id === layer)?.name}</Badge>
-              <Badge variant="neutral">{geeData && geeData.image_available !== false ? geeData.actual_image_date || geeData.acquisitionDate : date}</Badge>
+              <Badge variant="neutral">{geeMode === "live" && geeData && geeData.image_available !== false ? geeData.actual_image_date || geeData.acquisitionDate : date}</Badge>
               <span className="tp-hint" style={{ marginLeft: "auto" }}>
-                {geeData?.dataSource?.includes("LIVE") 
-                  ? t("farmHealth.geeActive", "Google Earth Engine active · sentinel hub") 
+                {geeMode === "live" 
+                  ? (layer === "ndvi" 
+                      ? "Google Earth Engine active · NDVI processing" 
+                      : "Google Earth Engine active · True Color visualization")
                   : t("farmHealth.offlineData", "Using offline cached baseline telemetry dataset")}
               </span>
             </>
           )}
         </div>
+
+        {/* Dev Mode Debug Panel */}
+        <details style={{ marginTop: 16, cursor: "pointer", fontSize: "0.78rem", color: "var(--tp-neutral-500)", border: "1.5px solid var(--tp-neutral-200)", borderRadius: 6, padding: "8px 12px" }}>
+          <summary style={{ fontWeight: 700 }}>🔍 Development / Hackathon Debug Metadata</summary>
+          <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 6, fontFamily: "monospace" }}>
+            <div><strong>data_source:</strong> {currentFieldTelemetry?.dataSource}</div>
+            <div><strong>field_id:</strong> {currentFieldTelemetry?.fieldId}</div>
+            <div><strong>satellite:</strong> {currentFieldTelemetry?.satellite}</div>
+            <div><strong>requested_date:</strong> {currentFieldTelemetry?.requestedDate}</div>
+            <div><strong>actual_image_date:</strong> {currentFieldTelemetry?.actualImageDate}</div>
+            <div><strong>earth_engine_success:</strong> {geeData && geeData.image_available !== false ? "true" : "false"}</div>
+            <div><strong>cloud_percentage:</strong> {currentFieldTelemetry?.cloudPercentage}%</div>
+            <div><strong>ndvi_source:</strong> {geeMode === "live" ? "Calculated B8/B4" : "Cached Mock Baseline"}</div>
+          </div>
+        </details>
       </Card>
 
       {/* Vegetation analytics */}

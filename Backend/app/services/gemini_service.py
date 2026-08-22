@@ -390,6 +390,9 @@ Strict rules:
 1. Return ONLY the raw JSON block. No markdown wrapper (like ```json), no explaining text.
 2. EXPLAIN RECOMMENDATIONS USING ACTUAL NUMERICAL OBSERVATIONS provided in the context (NDVI, NDVI change, temperature, rainfall, soil moisture).
 3. Do NOT invent, guess, or change any of the satellite or weather measurements. If a number is missing, discuss only the numbers present.
+4. Use ONLY supplied telemetry. Never substitute values from another field. Do not claim that a value was observed if it was not supplied in the context.
+5. Clearly distinguish satellite-derived observations from AI interpretation.
+6. Avoid presenting universal agronomic thresholds as absolute facts. If information is insufficient, say so. Recommend field inspection where appropriate.
 {cls._get_lang_instructions(lang, is_json=True)}
 """
 
@@ -744,6 +747,8 @@ STRICT RULES:
         ndvi = context.get("ndvi", 0.54)
         moisture = context.get("moisture", 28)
         crop = context.get("crop", "Cotton")
+        field_name = context.get("fieldName", "West Field")
+        temp = context.get("temperature", 34)
         
         risk_level = "MEDIUM"
         if ndvi < 0.45 or moisture < 20:
@@ -752,28 +757,28 @@ STRICT RULES:
             risk_level = "CRITICAL"
             
         return {
-            "field_status": f"The {context.get('fieldName', 'West Field')} is showing signs of moisture depletion. Vegetative vigor (NDVI) is at {ndvi} with a declining trend.",
+            "field_status": f"The {field_name} is showing signs of moisture depletion. Vegetative vigor (NDVI) is at {ndvi} with a declining trend.",
             "risk_level": risk_level,
             "primary_risk": "Water stress & early stage wilt risk",
-            "risk_factors": ["Dehydrated soil profile (moisture is at 28%)", "Transpiration increase from 34°C temperatures"],
+            "risk_factors": [f"Dehydrated soil profile (moisture is at {moisture}%)", f"Transpiration increase from {temp}°C temperatures"],
             "recommendations": [
                 {
-                    "action": "Apply a light 12mm sprinkler cycle to the West Field",
+                    "action": f"Apply a light 12mm sprinkler cycle to the {field_name}",
                     "priority": "HIGH",
                     "timeline": "Within 24 hours",
-                    "reason": f"Ground soil moisture (28%) is below the optimal 35% threshold for {crop}.",
+                    "reason": f"Ground soil moisture ({moisture}%) is below the optimal 35% threshold for {crop}.",
                     "expected_benefit": "Restores leaf turgor pressure and stabilizes the declining NDVI vigor trend."
                 },
                 {
                     "action": "Mulch the crop beds with available dry crop residue",
                     "priority": "MEDIUM",
                     "timeline": "Within 3 days",
-                    "reason": "Reduces moisture evaporation rate from soil surface in hot 34°C conditions.",
+                    "reason": f"Reduces moisture evaporation rate from soil surface in hot {temp}°C conditions.",
                     "expected_benefit": "Retains soil moisture up to 30% longer between watering intervals."
                 }
             ],
             "water_guidance": "Implement alternate wetting and drying. Avoid over-watering to prevent clay root suffocation.",
-            "soil_guidance": f"Apply organic mulch to Vertisol soil to prevent hard cracking under 34°C sunshine.",
+            "soil_guidance": f"Apply organic mulch to Vertisol soil to prevent hard cracking under {temp}°C sunshine.",
             "crop_guidance": f"Monitor {crop} square/flower retention. Drought stress during flowering reduces boll yield.",
             "disease_guidance": "Keep foliage dry during irrigation. Higher relative humidity increases risk of fungal leaf spot.",
             "regenerative_practice": "Plant a deep-rooted legume cover crop (e.g. Cowpea) in the next cycle to enhance moisture retention.",

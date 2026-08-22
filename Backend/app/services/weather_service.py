@@ -76,7 +76,7 @@ class WeatherService:
                 
                 return {
                     "temp": temp,
-                    "moisture": humidity,
+                    "humidity": humidity,
                     "rainfall": f"{rain} mm",
                     "forecast": f"{forecast}. Currently {temp}°C, {humidity}% humidity."
                 }
@@ -85,7 +85,7 @@ class WeatherService:
             
         return {
             "temp": 28.0,
-            "moisture": 35.0,
+            "humidity": 35.0,
             "rainfall": "12 mm",
             "forecast": "Partly cloudy"
         }

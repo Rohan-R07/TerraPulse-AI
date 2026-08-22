@@ -69,8 +69,6 @@ class EarthEngineService:
 
     @classmethod
     def get_satellite_data(cls, field_id: str, mode: str = "demo", date_str: str = None) -> Dict[str, Any]:
-        use_live = (mode == "live" and cls.is_live())
-        
         # Clean the field ID to standard format
         clean_field_id = "north"
         for fid in ["north", "south", "east", "west"]:
@@ -78,7 +76,8 @@ class EarthEngineService:
                 clean_field_id = fid
                 break
 
-        if not use_live:
+        # DEMO Mode: Return demo dataset immediately
+        if mode == "demo":
             acquisition_date = date_str if date_str else "2026-08-10"
             ndvi_val, prev_ndvi, status = cls._get_demo_field_values(clean_field_id)
             return {
@@ -93,7 +92,19 @@ class EarthEngineService:
                 "status": status,
                 "requested_date": date_str or "2026-08-10",
                 "actual_image_date": acquisition_date,
-                "image_available": True
+                "image_available": True,
+                "pixel_count": 45,
+                "valid_pixel_count": 45
+            }
+
+        # GEE LIVE Mode: Must run GEE logic and return strict errors if uninitialized or failed
+        if not ee_available:
+            return {
+                "fieldId": field_id,
+                "dataSource": "LIVE — Google Earth Engine (Sentinel-2)",
+                "isLive": True,
+                "image_available": False,
+                "message": "Live satellite data is currently unavailable. Google Earth Engine credentials not initialized."
             }
 
         try:
@@ -122,13 +133,12 @@ class EarthEngineService:
 
             count = int(s2_collection.size().getInfo())
             if count == 0:
-                # No image found in the range, return gracefully
                 return {
                     "fieldId": field_id,
                     "dataSource": "LIVE — Google Earth Engine (Sentinel-2)",
                     "isLive": True,
                     "image_available": False,
-                    "message": f"No suitable Sentinel-2 image was available within ±5 days of {date_str}."
+                    "message": f"Live satellite data is currently unavailable. No suitable Sentinel-2 image was available within ±5 days of {date_str}."
                 }
 
             # Select least cloudy image
@@ -136,6 +146,30 @@ class EarthEngineService:
 
             # Apply cloud/cirrus masking
             masked_image = mask_s2_clouds(best_image)
+
+            # Check pixel counts inside geometry bounds to prevent urban/small field errors
+            total_pixel_dict = best_image.select("B4").reduceRegion(
+                reducer=ee.Reducer.count(),
+                geometry=geometry,
+                scale=10
+            ).getInfo()
+            total_pixels = total_pixel_dict.get("B4", 0)
+
+            valid_pixel_dict = masked_image.select("B4").reduceRegion(
+                reducer=ee.Reducer.count(),
+                geometry=geometry,
+                scale=10
+            ).getInfo()
+            valid_pixels = valid_pixel_dict.get("B4", 0)
+
+            if valid_pixels is None or valid_pixels < 5:
+                return {
+                    "fieldId": field_id,
+                    "dataSource": "LIVE — Google Earth Engine (Sentinel-2)",
+                    "isLive": True,
+                    "image_available": False,
+                    "message": f"Live satellite data is currently unavailable. Insufficient valid satellite pixels ({valid_pixels if valid_pixels is not None else 0}/{total_pixels if total_pixels is not None else 0}) for a reliable field estimate."
+                }
 
             # Calculate NDVI
             ndvi_img = masked_image.normalizedDifference(["B8", "B4"]).rename("ndvi")
@@ -154,7 +188,7 @@ class EarthEngineService:
                     "dataSource": "LIVE — Google Earth Engine (Sentinel-2)",
                     "isLive": True,
                     "image_available": False,
-                    "message": "All Sentinel-2 image pixels were masked out due to cloud cover."
+                    "message": "Live satellite data is currently unavailable. All Sentinel-2 image pixels were masked out due to cloud cover."
                 }
 
             ndvi_value = round(float(ndvi_value), 3)
@@ -181,27 +215,19 @@ class EarthEngineService:
                 "status": status,
                 "requested_date": date_str,
                 "actual_image_date": actual_date,
-                "image_available": True
+                "image_available": True,
+                "pixel_count": int(total_pixels),
+                "valid_pixel_count": int(valid_pixels)
             }
 
         except Exception as e:
-            logger.error(f"Failed to fetch live Earth Engine data: {e}. Falling back to demo data.")
-            acquisition_date = date_str if date_str else "2026-08-10"
-            ndvi_val, prev_ndvi, status = cls._get_demo_field_values(clean_field_id)
+            logger.error(f"Failed to fetch live Earth Engine data: {e}.")
             return {
                 "fieldId": field_id,
-                "dataSource": "DEMO — Sentinel-2 Sample Dataset (GEE Fallback)",
-                "isLive": False,
-                "ndvi": ndvi_val,
-                "prevNdvi": prev_ndvi,
-                "acquisitionDate": acquisition_date,
-                "cloudCover": 1.2,
-                "resolution": "10m",
-                "status": status,
-                "requested_date": date_str or "2026-08-10",
-                "actual_image_date": acquisition_date,
-                "image_available": True,
-                "gee_error": str(e)
+                "dataSource": "LIVE — Google Earth Engine (Sentinel-2)",
+                "isLive": True,
+                "image_available": False,
+                "message": f"Live satellite data is currently unavailable. (Error: {str(e)})"
             }
 
     @classmethod
