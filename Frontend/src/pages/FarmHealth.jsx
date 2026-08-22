@@ -214,12 +214,14 @@ export default function FarmHealth() {
       if (!isDrawingRef.current) return;
       
       const latLng = e.latLng;
+      if (!latLng) return;
       activePathRef.current.push(latLng);
       
       if (!activePolylineRef.current) {
         activePolylineRef.current = new google.maps.Polyline({
           strokeColor: "#16a34a",
           strokeWeight: 3,
+          clickable: false,
           map: map
         });
       }
@@ -228,6 +230,7 @@ export default function FarmHealth() {
       const marker = new google.maps.Marker({
         position: latLng,
         map: map,
+        clickable: false,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: 6,
@@ -357,7 +360,15 @@ export default function FarmHealth() {
     if (!isDrawingRef.current) {
       setIsDrawing(true);
       isDrawingRef.current = true;
-      handleClearPolygon();
+      
+      // Clear previous drawing overlays and coordinates manually to preserve drawing mode status
+      cleanupDrawingHelpers();
+      if (currentPolygonObj) {
+        currentPolygonObj.setMap(null);
+        setCurrentPolygonObj(null);
+      }
+      setCustomPolygonCoords(null);
+      setPolygonArea(0);
       
       // Prevent predefined overlays from stealing map clicks
       setOverlaysClickable(false);
