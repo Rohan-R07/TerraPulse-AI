@@ -103,6 +103,7 @@ export default function FarmHealth() {
   const [searchQuery, setSearchQuery] = useState("");
   const [locationError, setLocationError] = useState(null);
   const [demoOverlays, setDemoOverlays] = useState([]);
+  const demoOverlaysRef = useRef([]);
 
   // Custom click drawing states and refs
   const [isDrawing, setIsDrawing] = useState(false);
@@ -276,10 +277,12 @@ export default function FarmHealth() {
 
       overlays.push({ id: fieldId, polygon: poly });
     });
+    demoOverlaysRef.current = overlays;
     setDemoOverlays(overlays);
 
     return () => {
       overlays.forEach(o => o.polygon.setMap(null));
+      demoOverlaysRef.current = [];
       google.maps.event.removeListener(clickListener);
     };
   }, [mapsLoaded, fieldsQ.data]);
@@ -340,6 +343,14 @@ export default function FarmHealth() {
     activePathRef.current = [];
   };
 
+  const setOverlaysClickable = (clickable) => {
+    demoOverlaysRef.current.forEach(o => {
+      if (o.polygon) {
+        o.polygon.setOptions({ clickable });
+      }
+    });
+  };
+
   const handleToggleDrawing = () => {
     if (!mapObj) return;
     
@@ -347,7 +358,19 @@ export default function FarmHealth() {
       setIsDrawing(true);
       isDrawingRef.current = true;
       handleClearPolygon();
-      mapObj.setOptions({ draggableCursor: "crosshair" });
+      
+      // Prevent predefined overlays from stealing map clicks
+      setOverlaysClickable(false);
+      
+      // Disable map gestures to focus clicks purely on placing polygon vertices
+      mapObj.setOptions({
+        draggable: false,
+        zoomControl: false,
+        scrollwheel: false,
+        disableDoubleClickZoom: true,
+        clickableIcons: false,
+        draggableCursor: "crosshair"
+      });
     } else {
       if (activePathRef.current.length < 3) {
         setLocationError("Please click at least 3 points on the map to define a valid field boundary.");
@@ -376,7 +399,17 @@ export default function FarmHealth() {
       cleanupDrawingHelpers();
       setIsDrawing(false);
       isDrawingRef.current = false;
-      mapObj.setOptions({ draggableCursor: null });
+      
+      // Re-enable predefined overlays and map gestures
+      setOverlaysClickable(true);
+      mapObj.setOptions({
+        draggable: true,
+        zoomControl: true,
+        scrollwheel: true,
+        disableDoubleClickZoom: false,
+        clickableIcons: true,
+        draggableCursor: null
+      });
     }
   };
 
@@ -390,8 +423,18 @@ export default function FarmHealth() {
     setPolygonArea(0);
     setIsDrawing(false);
     isDrawingRef.current = false;
+    
+    // Re-enable predefined overlays and map gestures
+    setOverlaysClickable(true);
     if (mapObj) {
-      mapObj.setOptions({ draggableCursor: null });
+      mapObj.setOptions({
+        draggable: true,
+        zoomControl: true,
+        scrollwheel: true,
+        disableDoubleClickZoom: false,
+        clickableIcons: true,
+        draggableCursor: null
+      });
     }
   };
 
