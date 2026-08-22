@@ -179,27 +179,9 @@ export default function AICopilot() {
       </div>
 
       <div className="tp-copilot-grid">
-        {/* Chat view */}
         <Card style={{ display: "flex", flexDirection: "column", height: "100%", padding: 0 }}>
           <div style={{ padding: 16, borderBottom: "2.5px solid #111827", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--tp-neutral-50)" }}>
             <CardTitle icon={MessageSquare}>{t("copilot.consoleTitle", "AI Reasoning Console")}</CardTitle>
-            
-            {/* Speech Language Selector */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span className="tp-hint" style={{ fontWeight: 700 }}>{t("labels.locale", "Locale")}:</span>
-              <select
-                value={speechLang}
-                onChange={(e) => setSpeechLang(e.target.value)}
-                className="tp-select"
-                style={{ width: "auto", padding: "4px 8px", fontSize: "0.82rem", height: 32, border: "2px solid #111827", borderRadius: 8, background: "#ffffff" }}
-              >
-                <option value="en-IN">English (India)</option>
-                <option value="hi-IN">हिन्दी (Hindi)</option>
-                <option value="mr-IN">मराठी (Marathi)</option>
-                <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
-                <option value="bn-IN">বাংলা (Bengali)</option>
-              </select>
-            </div>
           </div>
 
           {/* Messages block */}
