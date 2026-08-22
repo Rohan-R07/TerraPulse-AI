@@ -235,6 +235,32 @@ export const actionService = {
 };
 
 export const satelliteService = {
+  async getSatelliteHistory(fieldId) {
+    return safeFetch(`/satellite/${fieldId}/history`, {}, () => {
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"];
+      const ndviValues = [0.48, 0.52, 0.60, 0.68, 0.72, 0.75, 0.82, 0.80];
+      const moistureValues = [38, 35, 32, 34, 37, 40, 42, 41];
+      
+      const ndviHistory = months.map((m, i) => ({
+        date: m,
+        value: ndviValues[i],
+        month: m,
+        ndvi: ndviValues[i]
+      }));
+      const moistureHistory = months.map((m, i) => ({
+        date: m,
+        value: moistureValues[i],
+        month: m,
+        moisture: moistureValues[i]
+      }));
+      
+      return {
+        fieldId,
+        ndviHistory,
+        moistureHistory
+      };
+    });
+  },
   async getSatelliteData(fieldId, isLive, date, geometry = null) {
     if (geometry) {
       return safeFetch("/satellite/analysis", {
