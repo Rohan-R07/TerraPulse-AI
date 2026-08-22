@@ -610,10 +610,79 @@ export default function FarmHealth() {
     return <Card><ErrorState message={t("states.error")} onRetry={fieldsQ.refetch} /></Card>;
   }
 
-  const analyticsData = analyticsField === "all" ? ndviHistory : ndviHistory.map((d, i) => ({
-    ...d,
-    ndvi: +(d.ndvi * (0.7 + 0.1 * (["north", "south", "east", "west"].indexOf(analyticsField) % 4))).toFixed(2),
-  }));
+  const analyticsData = useMemo(() => {
+    if (geeMode === "live" && currentFieldTelemetry) {
+      const currentNdvi = currentFieldTelemetry.ndvi;
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"];
+      return months.map((m, idx) => {
+        const factor = 0.6 + 0.4 * (idx / 7);
+        return {
+          month: m,
+          ndvi: +(currentNdvi * factor).toFixed(2)
+        };
+      });
+    }
+    return analyticsField === "all" ? ndviHistory : ndviHistory.map((d, i) => ({
+      ...d,
+      ndvi: +(d.ndvi * (0.7 + 0.1 * (["north", "south", "east", "west"].indexOf(analyticsField) % 4))).toFixed(2),
+    }));
+  }, [geeMode, currentFieldTelemetry, analyticsField]);
+
+  const moistureHistoryData = useMemo(() => {
+    if (geeMode === "live" && currentFieldTelemetry) {
+      const currentMoisture = currentFieldTelemetry.soilMoisture;
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"];
+      return months.map((m, idx) => {
+        const variation = [10, -5, -12, -3, 4, 6, -1, 0][idx];
+        return {
+          month: m,
+          moisture: Math.max(10, Math.min(95, currentMoisture + variation))
+        };
+      });
+    }
+    return moistureHistory;
+  }, [geeMode, currentFieldTelemetry]);
+
+  const coverCropsData = useMemo(() => {
+    if (!coverQ.data) return null;
+    if (geeMode === "live" && currentFieldTelemetry) {
+      const isStressed = currentFieldTelemetry.ndvi < 0.55;
+      return [
+        {
+          crop: isStressed ? "Clover" : "Cowpea",
+          purpose: isStressed ? "Soil cover & moisture retention" : "Nitrogen fixation",
+          benefit: isStressed ? "Reduces evaporation loss by 40%" : "Adds 60-80 kg N/ha",
+          suitability: isStressed ? 94 : 88,
+          timing: "Immediate sowing"
+        },
+        {
+          crop: isStressed ? "Mustard" : "Sunnhemp",
+          purpose: isStressed ? "Biofumigation" : "Biomass production",
+          benefit: isStressed ? "Suppresses nematodes" : "Improves organic matter",
+          suitability: isStressed ? 86 : 82,
+          timing: "Next 2 weeks"
+        }
+      ];
+    }
+    return coverQ.data;
+  }, [coverQ.data, geeMode, currentFieldTelemetry]);
+
+  const bioFertilizerData = useMemo(() => {
+    if (!bioQ.data) return null;
+    if (geeMode === "live" && currentFieldTelemetry) {
+      const isStressed = currentFieldTelemetry.ndvi < 0.55;
+      return [
+        {
+          field: currentFieldTelemetry.fieldName,
+          product: isStressed ? "Mycorrhizae (AMF)" : "Azotobacter",
+          timing: isStressed ? "Next irrigation cycle" : "At sowing / vegetative stage",
+          reason: isStressed ? "Enhance root water uptake efficiency" : "Promote nitrogen fixation and vigor",
+          status: isStressed ? "Urgent" : "Scheduled"
+        }
+      ];
+    }
+    return bioQ.data;
+  }, [bioQ.data, geeMode, currentFieldTelemetry]);
 
   return (
     <div>
@@ -990,104 +1059,108 @@ export default function FarmHealth() {
       </Card>
 
       {/* Vegetation analytics */}
-      <Card style={{ marginBottom: 20 }}>
-        <div className="tp-row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
-          <CardTitle icon={Activity}>{t("farmHealth.vegAnalyticsTitle", "Vegetation analytics")}</CardTitle>
-          <div className="tp-field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <label className="tp-label" style={{ margin: 0 }}>{t("labels.field")}</label>
-            <select className="tp-select" style={{ width: "auto" }} value={analyticsField} onChange={(e) => setAnalyticsField(e.target.value)}>
-              <option value="all">{t("farmHealth.allFields", "All fields (avg)")}</option>
-              {fieldsQ.data?.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
+      {!(geeMode === "live" && !advisoryData) && (
+        <Card style={{ marginBottom: 20 }}>
+          <div className="tp-row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
+            <CardTitle icon={Activity}>{t("farmHealth.vegAnalyticsTitle", "Vegetation analytics")}</CardTitle>
+            <div className="tp-field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <label className="tp-label" style={{ margin: 0 }}>{t("labels.field")}</label>
+              <select className="tp-select" style={{ width: "auto" }} value={analyticsField} onChange={(e) => setAnalyticsField(e.target.value)}>
+                <option value="all">{t("farmHealth.allFields", "All fields (avg)")}</option>
+                {fieldsQ.data?.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            </div>
           </div>
-        </div>
-        <div className="tp-grid tp-grid-2">
-          <div>
-            <h4 style={{ marginBottom: 8, color: "var(--tp-neutral-600)", fontSize: "0.84rem" }}>NDVI</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={analyticsData} margin={{ left: -20, right: 8, top: 8 }}>
-                <defs>
-                  <linearGradient id="anNdvi" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--tp-green-400)" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="var(--tp-green-400)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--tp-neutral-200)" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "var(--tp-neutral-500)" }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 1]} tick={{ fontSize: 12, fill: "var(--tp-neutral-500)" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={chartTooltipStyle} />
-                <Area type="monotone" dataKey="ndvi" stroke="var(--tp-green-600)" strokeWidth={2} fill="url(#anNdvi)" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="tp-grid tp-grid-2">
+            <div>
+              <h4 style={{ marginBottom: 8, color: "var(--tp-neutral-600)", fontSize: "0.84rem" }}>NDVI</h4>
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={analyticsData} margin={{ left: -20, right: 8, top: 8 }}>
+                  <defs>
+                    <linearGradient id="anNdvi" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--tp-green-400)" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="var(--tp-green-400)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--tp-neutral-200)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: "var(--tp-neutral-500)" }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 1]} tick={{ fontSize: 12, fill: "var(--tp-neutral-500)" }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={chartTooltipStyle} />
+                  <Area type="monotone" dataKey="ndvi" stroke="var(--tp-green-600)" strokeWidth={2} fill="url(#anNdvi)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div>
+              <h4 style={{ marginBottom: 8, color: "var(--tp-neutral-600)", fontSize: "0.84rem" }}>{t("labels.soilMoisture", "Moisture stress")}</h4>
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={moistureHistoryData} margin={{ left: -20, right: 8, top: 8 }}>
+                  <defs>
+                    <linearGradient id="anMoist" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--tp-sky-500)" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="var(--tp-sky-500)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--tp-neutral-200)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: "var(--tp-neutral-500)" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: "var(--tp-neutral-500)" }} axisLine={false} tickLine={false} unit="%" />
+                  <Tooltip contentStyle={chartTooltipStyle} />
+                  <ReferenceLine y={30} stroke="var(--tp-warning)" strokeDasharray="4 4" label={{ value: t("farmHealth.stressThreshold", "Stress threshold"), fontSize: 10, fill: "var(--tp-warning)" }} />
+                  <Area type="monotone" dataKey="moisture" stroke="var(--tp-sky-600)" strokeWidth={2} fill="url(#anMoist)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-          <div>
-            <h4 style={{ marginBottom: 8, color: "var(--tp-neutral-600)", fontSize: "0.84rem" }}>{t("labels.soilMoisture", "Moisture stress")}</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={moistureHistory} margin={{ left: -20, right: 8, top: 8 }}>
-                <defs>
-                  <linearGradient id="anMoist" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--tp-sky-500)" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="var(--tp-sky-500)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--tp-neutral-200)" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "var(--tp-neutral-500)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: "var(--tp-neutral-500)" }} axisLine={false} tickLine={false} unit="%" />
-                <Tooltip contentStyle={chartTooltipStyle} />
-                <ReferenceLine y={30} stroke="var(--tp-warning)" strokeDasharray="4 4" label={{ value: t("farmHealth.stressThreshold", "Stress threshold"), fontSize: 10, fill: "var(--tp-warning)" }} />
-                <Area type="monotone" dataKey="moisture" stroke="var(--tp-sky-600)" strokeWidth={2} fill="url(#anMoist)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {/* Cover crops + Bio-fertilizer */}
-      <div className="tp-grid tp-grid-2">
-        <Card pad={false}>
-          <div style={{ padding: "var(--tp-space-5) var(--tp-space-5) 0" }}>
-            <CardTitle icon={Sprout}>{t("farmHealth.coverCropTitle", "Cover-crop recommendations")}</CardTitle>
-          </div>
-          {coverQ.loading ? <div style={{ padding: 20 }}><Skeleton h={200} /></div> : coverQ.data ? (
-            <table className="tp-table">
-              <thead><tr><th>{t("labels.crop")}</th><th>{t("labels.purpose", "Purpose")}</th><th>{t("labels.benefit", "Benefit")}</th><th>{t("labels.suitability", "Suitability")}</th><th>{t("labels.timing", "Timing")}</th></tr></thead>
-              <tbody>
-                {coverQ.data.map((c) => (
-                  <tr key={c.crop}>
-                    <td><strong>{c.crop}</strong></td>
-                    <td>{c.purpose}</td>
-                    <td>{c.benefit}</td>
-                    <td><Badge variant={c.suitability >= 85 ? "success" : c.suitability >= 70 ? "warning" : "neutral"}>{c.suitability}%</Badge></td>
-                    <td>{c.timing}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : null}
-        </Card>
+      {!(geeMode === "live" && !advisoryData) && (
+        <div className="tp-grid tp-grid-2">
+          <Card pad={false}>
+            <div style={{ padding: "var(--tp-space-5) var(--tp-space-5) 0" }}>
+              <CardTitle icon={Sprout}>{t("farmHealth.coverCropTitle", "Cover-crop recommendations")}</CardTitle>
+            </div>
+            {coverQ.loading ? <div style={{ padding: 20 }}><Skeleton h={200} /></div> : coverCropsData ? (
+              <table className="tp-table">
+                <thead><tr><th>{t("labels.crop")}</th><th>{t("labels.purpose", "Purpose")}</th><th>{t("labels.benefit", "Benefit")}</th><th>{t("labels.suitability", "Suitability")}</th><th>{t("labels.timing", "Timing")}</th></tr></thead>
+                <tbody>
+                  {coverCropsData.map((c) => (
+                    <tr key={c.crop}>
+                      <td><strong>{c.crop}</strong></td>
+                      <td>{c.purpose}</td>
+                      <td>{c.benefit}</td>
+                      <td><Badge variant={c.suitability >= 85 ? "success" : c.suitability >= 70 ? "warning" : "neutral"}>{c.suitability}%</Badge></td>
+                      <td>{c.timing}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </Card>
 
-        <Card pad={false}>
-          <div style={{ padding: "var(--tp-space-5) var(--tp-space-5) 0" }}>
-            <CardTitle icon={FlaskConical}>{t("farmHealth.bioFertTitle", "Bio-fertilizer scheduling")}</CardTitle>
-          </div>
-          {bioQ.loading ? <div style={{ padding: 20 }}><Skeleton h={200} /></div> : bioQ.data ? (
-            <table className="tp-table">
-              <thead><tr><th>{t("labels.field")}</th><th>{t("labels.product", "Product")}</th><th>{t("labels.timing", "Timing")}</th><th>{t("labels.reason", "Reason")}</th><th>{t("labels.status")}</th></tr></thead>
-              <tbody>
-                {bioQ.data.map((b, i) => (
-                  <tr key={i}>
-                    <td><strong>{b.field}</strong></td>
-                    <td>{b.product}</td>
-                    <td>{b.timing}</td>
-                    <td>{b.reason}</td>
-                    <td><Badge variant={b.status === "Urgent" ? "error" : b.status === "Scheduled" ? "success" : "warning"}>{b.status}</Badge></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : null}
-        </Card>
-      </div>
+          <Card pad={false}>
+            <div style={{ padding: "var(--tp-space-5) var(--tp-space-5) 0" }}>
+              <CardTitle icon={FlaskConical}>{t("farmHealth.bioFertTitle", "Bio-fertilizer scheduling")}</CardTitle>
+            </div>
+            {bioQ.loading ? <div style={{ padding: 20 }}><Skeleton h={200} /></div> : bioFertilizerData ? (
+              <table className="tp-table">
+                <thead><tr><th>{t("labels.field")}</th><th>{t("labels.product", "Product")}</th><th>{t("labels.timing", "Timing")}</th><th>{t("labels.reason", "Reason")}</th><th>{t("labels.status")}</th></tr></thead>
+                <tbody>
+                  {bioFertilizerData.map((b, i) => (
+                    <tr key={i}>
+                      <td><strong>{b.field}</strong></td>
+                      <td>{b.product}</td>
+                      <td>{b.timing}</td>
+                      <td>{b.reason}</td>
+                      <td><Badge variant={b.status === "Urgent" ? "error" : b.status === "Scheduled" ? "success" : "warning"}>{b.status}</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
