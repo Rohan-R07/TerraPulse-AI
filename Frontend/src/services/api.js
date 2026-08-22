@@ -235,8 +235,12 @@ export const actionService = {
 };
 
 export const satelliteService = {
-  async getSatelliteData(fieldId, isLive) {
-    return safeFetch(`/satellite/${fieldId}?mode=${isLive ? "live" : "demo"}`, {}, () => {
+  async getSatelliteData(fieldId, isLive, date) {
+    let url = `/satellite/${fieldId}?mode=${isLive ? "live" : "demo"}`;
+    if (date) {
+      url += `&date=${date}`;
+    }
+    return safeFetch(url, {}, () => {
       const ndviMap = { north: 0.72, south: 0.54, east: 0.63, west: 0.41 };
       const prevNdviMap = { north: 0.70, south: 0.60, east: 0.67, west: 0.58 };
       const statusMap = {
@@ -252,10 +256,13 @@ export const satelliteService = {
         isLive,
         ndvi,
         prevNdvi: prevNdviMap[fieldId] || 0.65,
-        acquisitionDate: isLive ? "2026-08-18" : "2026-08-10",
+        acquisitionDate: date || (isLive ? "2026-08-18" : "2026-08-10"),
         cloudCover: 1.2,
         resolution: "10m",
-        status: statusMap[fieldId] || "Healthy"
+        status: statusMap[fieldId] || "Healthy",
+        requested_date: date || "2026-08-10",
+        actual_image_date: date || (isLive ? "2026-08-18" : "2026-08-10"),
+        image_available: true
       };
     });
   },

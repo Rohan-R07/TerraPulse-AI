@@ -14,12 +14,12 @@ logger = logging.getLogger("TerraPulseBackend.Satellite")
 router = APIRouter(tags=["Satellite & Risk"])
 
 @router.get("/satellite/{field_id}", response_model=SatelliteLatestResponse)
-async def get_satellite_data(field_id: str, mode: str = "demo"):
-    return EarthEngineService.get_satellite_data(field_id, mode)
+async def get_satellite_data(field_id: str, mode: str = "demo", date: Optional[str] = None):
+    return EarthEngineService.get_satellite_data(field_id, mode, date)
 
 @router.get("/satellite/{field_id}/latest", response_model=SatelliteLatestResponse)
-async def get_latest_satellite(field_id: str, mode: str = "demo"):
-    return EarthEngineService.get_satellite_data(field_id, mode)
+async def get_latest_satellite(field_id: str, mode: str = "demo", date: Optional[str] = None):
+    return EarthEngineService.get_satellite_data(field_id, mode, date)
 
 @router.get("/satellite/{field_id}/history", response_model=SatelliteHistoryResponse)
 async def get_satellite_history(field_id: str):
@@ -32,9 +32,9 @@ async def get_satellite_history(field_id: str):
     }
 
 @router.get("/satellite/{field_id}/ndvi")
-async def get_field_ndvi(field_id: str, mode: str = "demo"):
-    sat = EarthEngineService.get_satellite_data(field_id, mode)
-    return {"ndvi": sat["ndvi"], "date": sat["acquisitionDate"], "dataSource": sat["dataSource"]}
+async def get_field_ndvi(field_id: str, mode: str = "demo", date: Optional[str] = None):
+    sat = EarthEngineService.get_satellite_data(field_id, mode, date)
+    return {"ndvi": sat.get("ndvi"), "date": sat.get("acquisitionDate"), "dataSource": sat.get("dataSource")}
 
 @router.get("/satellite/{field_id}/layers")
 async def get_satellite_layers(field_id: str):

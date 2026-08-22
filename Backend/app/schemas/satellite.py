@@ -24,12 +24,16 @@ class SatelliteLatestResponse(BaseModel):
     fieldId: str
     dataSource: str
     isLive: bool
-    ndvi: float
-    prevNdvi: float
-    acquisitionDate: str
-    cloudCover: float
-    resolution: str
-    status: str
+    ndvi: Optional[float] = None
+    prevNdvi: Optional[float] = None
+    acquisitionDate: Optional[str] = None
+    cloudCover: Optional[float] = None
+    resolution: Optional[str] = None
+    status: Optional[str] = None
+    requested_date: Optional[str] = None
+    actual_image_date: Optional[str] = None
+    image_available: Optional[bool] = None
+    message: Optional[str] = None
 
 class HistoryDataPoint(BaseModel):
     date: str

@@ -41,18 +41,18 @@ export default function FarmHealth() {
 
   const selected = fieldsQ.data?.find((f) => f.id === selectedId) || fieldsQ.data?.[0];
 
-  // Fetch GEE data when field or mode changes
+  // Fetch GEE data when field, date or mode changes
   useEffect(() => {
     if (selectedId) {
       setGeeLoading(true);
-      satelliteService.getSatelliteData(selectedId, geeMode === "live")
+      satelliteService.getSatelliteData(selectedId, geeMode === "live", date)
         .then(res => {
           setGeeData(res);
           setGeeLoading(false);
         })
         .catch(() => setGeeLoading(false));
     }
-  }, [selectedId, geeMode]);
+  }, [selectedId, geeMode, date]);
 
   const handleGenerateAdvisory = async () => {
     if (!selected) return;
@@ -169,10 +169,10 @@ export default function FarmHealth() {
               </div>
               <div className="tp-grid tp-grid-3">
                 <Metric label={t("labels.crop")} value={selected.crop} />
-                <Metric label="NDVI" value={geeData ? geeData.ndvi.toFixed(2) : selected.ndvi.toFixed(2)} />
+                <Metric label="NDVI" value={geeData && geeData.image_available !== false ? geeData.ndvi.toFixed(2) : selected.ndvi.toFixed(2)} />
                 <Metric label={t("labels.soilMoisture")} value={`${selected.moisture}%`} />
                 <Metric label={t("labels.vegetation", "Vegetation")} value={selected.vegetation} />
-                <Metric label={t("labels.stress", "Stress")} value={geeData ? geeData.status : selected.stress} />
+                <Metric label={t("labels.stress", "Stress")} value={geeData && geeData.image_available !== false ? geeData.status : selected.stress} />
                 <div className="tp-stat"><span className="tp-stat-label">{t("labels.status")}</span><div style={{ marginTop: 4 }}><RiskBadge risk={selected.risk} /></div></div>
               </div>
               <div>
@@ -324,10 +324,23 @@ export default function FarmHealth() {
             </select>
             <span className="tp-hint">
               <Calendar size={11} style={{ display: "inline", verticalAlign: "middle" }} />{" "}
-              {geeData ? geeData.acquisitionDate : date}
+              {geeData && geeData.image_available !== false ? (
+                <>
+                  Actual: {geeData.actual_image_date || geeData.acquisitionDate}
+                </>
+              ) : (
+                date
+              )}
             </span>
           </div>
         </div>
+        
+        {geeData?.image_available === false && (
+          <div style={{ marginTop: 12, padding: "10px 14px", background: "var(--tp-warning-50)", border: "2px solid var(--tp-warning-600)", borderRadius: 8, color: "var(--tp-warning-800)", fontSize: "0.84rem", display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
+            <AlertTriangle size={16} />
+            <span>{geeData.message || "No suitable Sentinel-2 image was available for the selected date. Showing fallback demo data."}</span>
+          </div>
+        )}
         
         <div className="tp-row" style={{ marginTop: 12 }}>
           {geeLoading ? (
@@ -340,7 +353,7 @@ export default function FarmHealth() {
                 <Satellite size={12} /> {geeData?.dataSource || "Sentinel-2"}
               </Badge>
               <Badge variant="neutral">{satelliteLayers.find((l) => l.id === layer)?.name}</Badge>
-              <Badge variant="neutral">{geeData ? geeData.acquisitionDate : date}</Badge>
+              <Badge variant="neutral">{geeData && geeData.image_available !== false ? geeData.actual_image_date || geeData.acquisitionDate : date}</Badge>
               <span className="tp-hint" style={{ marginLeft: "auto" }}>
                 {geeData?.dataSource?.includes("LIVE") 
                   ? t("farmHealth.geeActive", "Google Earth Engine active · sentinel hub") 
