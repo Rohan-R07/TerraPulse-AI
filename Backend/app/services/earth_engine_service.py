@@ -241,19 +241,36 @@ class EarthEngineService:
     def get_historical_ndvi(cls, field_id: str, limit: int = 8) -> List[Dict[str, Any]]:
         months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"]
         
-        # Clean the field ID to standard format
-        clean_field_id = "north"
-        for fid in ["north", "south", "east", "west"]:
-            if fid in field_id.lower():
-                clean_field_id = fid
-                break
+        # Clean the field ID or crop name to standard format
+        clean_id = "wheat"
+        id_lower = field_id.lower()
+        if "north" in id_lower or "wheat" in id_lower:
+            clean_id = "wheat"
+        elif "south" in id_lower or "rice" in id_lower:
+            clean_id = "rice"
+        elif "east" in id_lower or "cotton" in id_lower:
+            clean_id = "cotton"
+        elif "west" in id_lower or "sugar" in id_lower or "sugarcane" in id_lower:
+            clean_id = "sugarcane"
+        elif "corn" in id_lower:
+            clean_id = "corn"
+        elif "soy" in id_lower or "soybeans" in id_lower:
+            clean_id = "soybeans"
+        else:
+            clean_id = "wheat"
 
-        if clean_field_id == "west":
+        if clean_id == "sugarcane":
             values = [0.28, 0.32, 0.38, 0.42, 0.45, 0.48, 0.41, 0.39]
-        elif clean_field_id == "north":
+        elif clean_id == "wheat":
             values = [0.48, 0.52, 0.60, 0.68, 0.72, 0.75, 0.82, 0.80]
-        elif clean_field_id == "south":
+        elif clean_id == "rice":
             values = [0.35, 0.40, 0.48, 0.55, 0.58, 0.62, 0.64, 0.60]
+        elif clean_id == "cotton":
+            values = [0.40, 0.45, 0.52, 0.58, 0.63, 0.65, 0.71, 0.68]
+        elif clean_id == "corn":
+            values = [0.30, 0.35, 0.42, 0.50, 0.58, 0.65, 0.70, 0.68]
+        elif clean_id == "soybeans":
+            values = [0.25, 0.30, 0.38, 0.46, 0.54, 0.60, 0.65, 0.62]
         else:
             values = [0.40, 0.45, 0.52, 0.58, 0.63, 0.65, 0.71, 0.68]
             
@@ -271,19 +288,36 @@ class EarthEngineService:
     def get_historical_moisture(cls, field_id: str, limit: int = 8) -> List[Dict[str, Any]]:
         months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"]
         
-        # Clean the field ID to standard format
-        clean_field_id = "north"
-        for fid in ["north", "south", "east", "west"]:
-            if fid in field_id.lower():
-                clean_field_id = fid
-                break
+        # Clean the field ID or crop name to standard format
+        clean_id = "wheat"
+        id_lower = field_id.lower()
+        if "north" in id_lower or "wheat" in id_lower:
+            clean_id = "wheat"
+        elif "south" in id_lower or "rice" in id_lower:
+            clean_id = "rice"
+        elif "east" in id_lower or "cotton" in id_lower:
+            clean_id = "cotton"
+        elif "west" in id_lower or "sugar" in id_lower or "sugarcane" in id_lower:
+            clean_id = "sugarcane"
+        elif "corn" in id_lower:
+            clean_id = "corn"
+        elif "soy" in id_lower or "soybeans" in id_lower:
+            clean_id = "soybeans"
+        else:
+            clean_id = "wheat"
 
-        if clean_field_id == "west":
+        if clean_id == "sugarcane":
             values = [28, 25, 22, 20, 18, 24, 26, 22]
-        elif clean_field_id == "north":
+        elif clean_id == "wheat":
             values = [38, 35, 32, 34, 37, 40, 42, 41]
-        elif clean_field_id == "south":
+        elif clean_id == "rice":
             values = [32, 30, 28, 26, 28, 32, 35, 28]
+        elif clean_id == "cotton":
+            values = [35, 33, 30, 31, 33, 36, 38, 35]
+        elif clean_id == "corn":
+            values = [34, 31, 29, 30, 32, 35, 37, 34]
+        elif clean_id == "soybeans":
+            values = [30, 28, 26, 27, 29, 31, 33, 31]
         else:
             values = [35, 33, 30, 31, 33, 36, 38, 35]
             
@@ -296,4 +330,3 @@ class EarthEngineService:
                 "moisture": val
             })
         return history
-

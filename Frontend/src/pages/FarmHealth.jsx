@@ -87,7 +87,25 @@ export default function FarmHealth() {
   const [source, setSource] = useState("sentinel2");
   const [layer, setLayer] = useState("ndvi");
   const [date, setDate] = useState(satelliteDates[0]);
-  const [analyticsField, setAnalyticsField] = useState("all");
+  const [analyticsCrop, setAnalyticsCrop] = useState("all");
+  const [historyData, setHistoryData] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Fetch historical crop telemetry from backend
+  useEffect(() => {
+    setHistoryLoading(true);
+    const targetCrop = analyticsCrop === "all" ? "wheat" : analyticsCrop.toLowerCase();
+    satelliteService.getSatelliteHistory(targetCrop)
+      .then((res) => {
+        setHistoryData(res);
+        setHistoryLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load crop history:", err);
+        setHistoryLoading(false);
+      });
+  }, [analyticsCrop]);
+
   const [selectedCrop, setSelectedCrop] = useState("Wheat");
 
   // Sync selectedCrop with predefined field's crop on load or change
@@ -635,11 +653,11 @@ export default function FarmHealth() {
         };
       });
     }
-    return analyticsField === "all" ? ndviHistory : ndviHistory.map((d, i) => ({
-      ...d,
-      ndvi: +(d.ndvi * (0.7 + 0.1 * (["north", "south", "east", "west"].indexOf(analyticsField) % 4))).toFixed(2),
-    }));
-  }, [geeMode, currentFieldTelemetry, analyticsField]);
+    if (historyData?.ndviHistory) {
+      return historyData.ndviHistory;
+    }
+    return ndviHistory;
+  }, [geeMode, currentFieldTelemetry, historyData]);
 
   const moistureHistoryData = useMemo(() => {
     if (geeMode === "live" && currentFieldTelemetry) {
@@ -653,8 +671,11 @@ export default function FarmHealth() {
         };
       });
     }
+    if (historyData?.moistureHistory) {
+      return historyData.moistureHistory;
+    }
     return moistureHistory;
-  }, [geeMode, currentFieldTelemetry]);
+  }, [geeMode, currentFieldTelemetry, historyData]);
 
   const coverCropsData = useMemo(() => {
     if (!coverQ.data) return null;
@@ -696,6 +717,43 @@ export default function FarmHealth() {
     }
     return bioQ.data;
   }, [bioQ.data, geeMode, currentFieldTelemetry]);
+
+  const cropRecommendations = useMemo(() => {
+    if (geeMode === "live" && currentFieldTelemetry) {
+      const crop = selectedCrop;
+      const isStressed = currentFieldTelemetry.ndvi < 0.55;
+      if (crop === "Wheat") {
+        return isStressed 
+          ? ["Increase irrigation to mitigate thermal stress", "Monitor for rust fungus immediately", "Apply phosphorus booster"]
+          : ["Maintain current moisture levels", "Perform weekly rust inspections", "Apply light nitrogen top-dressing"];
+      } else if (crop === "Rice") {
+        return isStressed
+          ? ["Initiate flooding irrigation immediately", "Check for blast disease", "Apply urea fertilizer"]
+          : ["Implement Alternate Wetting and Drying (AWD)", "Monitor water levels daily", "Apply zinc sulfate"];
+      } else if (crop === "Cotton") {
+        return isStressed
+          ? ["Deploy emergency drip irrigation", "Inspect for bollworm infestation", "Apply foliar potassium spray"]
+          : ["Ensure proper soil drainage", "Monitor vegetative growth index", "Apply growth regulator as scheduled"];
+      } else if (crop === "Corn") {
+        return isStressed
+          ? ["Irrigate immediately (critical silking phase)", "Check for corn borer damage", "Apply liquid nitrogen"]
+          : ["Monitor soil moisture at root zone", "Inspect crop stand uniformity", "Prepare for side-dressing"];
+      } else if (crop === "Soybeans") {
+        return isStressed
+          ? ["Provide supplemental irrigation", "Monitor for soybean rust", "Apply organic potassium booster"]
+          : ["Ensure nodulation is active", "Perform standard weed control", "Monitor canopy closure"];
+      } else if (crop === "Sugarcane") {
+        return isStressed
+          ? ["Irrigate to prevent cane elongation halt", "Check for red rot disease", "Apply potassium-rich compost"]
+          : ["Maintain trash mulching layer", "Monitor internode spacing", "Schedule fertilizer application"];
+      }
+    }
+    return selected?.recommendations || [
+      "Maintain current irrigation schedule",
+      "Monitor for pests in next 2 weeks",
+      "Apply fertilizer at vegetative stage"
+    ];
+  }, [geeMode, currentFieldTelemetry, selectedCrop, selected]);
 
   return (
     <div>
@@ -855,15 +913,11 @@ export default function FarmHealth() {
               )}
 
               <div>
-                <strong style={{ fontSize: "0.86rem" }}>{t("farmHealth.standardRecs", "Standard Recommendations")}</strong>
+                <strong style={{ fontSize: "0.86rem" }}>
+                  {advisoryData ? t("farmHealth.aiRecs", "AI-Generated Recommendations") : t("farmHealth.standardRecs", "Standard Recommendations")}
+                </strong>
                 <ul style={{ margin: "8px 0 0", paddingLeft: 18, color: "var(--tp-neutral-600)", fontSize: "0.86rem", display: "flex", flexDirection: "column", gap: 4 }}>
-                  {selected?.recommendations?.map((r, i) => <li key={i}>{r}</li>) || (
-                    <>
-                      <li>Increase irrigation frequency</li>
-                      <li>Inspect for potassium deficiency</li>
-                      <li>Introduce cover crop after harvest</li>
-                    </>
-                  )}
+                  {cropRecommendations.map((r, i) => <li key={i}>{r}</li>)}
                 </ul>
               </div>
             </div>
@@ -1085,10 +1139,12 @@ export default function FarmHealth() {
           <div className="tp-row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
             <CardTitle icon={Activity}>{t("farmHealth.vegAnalyticsTitle", "Vegetation analytics")}</CardTitle>
             <div className="tp-field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <label className="tp-label" style={{ margin: 0 }}>{t("labels.field")}</label>
-              <select className="tp-select" style={{ width: "auto" }} value={analyticsField} onChange={(e) => setAnalyticsField(e.target.value)}>
-                <option value="all">{t("farmHealth.allFields", "All fields (avg)")}</option>
-                {fieldsQ.data?.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              <label className="tp-label" style={{ margin: 0 }}>{t("labels.crop", "Crop")}</label>
+              <select className="tp-select" style={{ width: "auto" }} value={analyticsCrop} onChange={(e) => setAnalyticsCrop(e.target.value)}>
+                <option value="all">{t("farmHealth.allCrops", "All crops (avg)")}</option>
+                {["Wheat", "Rice", "Cotton", "Sugarcane", "Corn", "Soybeans"].map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
             </div>
           </div>
