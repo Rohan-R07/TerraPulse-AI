@@ -24,7 +24,9 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
   }
 
   try {
-    const url = `${BASE_URL}${endpoint}`;
+    const activeLang = localStorage.getItem("tp-locale") || "en-IN";
+    const separator = endpoint.includes("?") ? "&" : "?";
+    const url = `${BASE_URL}${endpoint}${separator}lang=${activeLang}`;
     const res = await fetch(url, { ...options, headers });
     const contentType = res.headers.get("content-type") || "";
 

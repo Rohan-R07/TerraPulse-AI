@@ -1,6 +1,6 @@
 import logging
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.schemas.advisory import AdvisoryRequest, AdvisoryResponse
 from app.services.gemini_service import GeminiService
 from app.services.firestore_service import FirestoreService
@@ -53,7 +53,7 @@ def get_aggregated_context(field_id: str) -> dict:
     return field
 
 @router.post("", response_model=AdvisoryResponse)
-async def generate_general_advisory(request: AdvisoryRequest):
+async def generate_general_advisory(request: AdvisoryRequest, lang: Optional[str] = None):
     # Fetch live weather for general advisory location
     weather = WeatherService.get_live_weather(request.location)
     context = {
@@ -75,13 +75,13 @@ async def generate_general_advisory(request: AdvisoryRequest):
         "recentActions": "None"
     }
     
-    return GeminiService.generate_advisory(context)
+    return GeminiService.generate_advisory(context, lang=lang or "en-IN")
 
 @router.post("/{field_id}", response_model=AdvisoryResponse)
-async def generate_field_advisory(field_id: str):
+async def generate_field_advisory(field_id: str, lang: Optional[str] = None):
     try:
         context = get_aggregated_context(field_id)
-        return GeminiService.generate_advisory(context)
+        return GeminiService.generate_advisory(context, lang=lang or "en-IN")
     except Exception as e:
         logger.error(f"Failed to generate field advisory: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -2,7 +2,7 @@ import os
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 class Settings(BaseModel):
     GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "AIzaSyDXLC-VuQZuFXowORsslcSNb79UhncYy7k")

@@ -73,7 +73,8 @@ class CarbonEngine:
         historical_yield: float,
         rotation_a: List[str],
         rotation_b: List[str],
-        rotation_c: List[str]
+        rotation_c: List[str],
+        lang: str = "en-IN"
     ) -> dict:
         results_a = cls.calculate_single_scenario(soil_type, acreage, rotation_a, "current")
         results_b = cls.calculate_single_scenario(soil_type, acreage, rotation_b, "regenerative")
@@ -113,7 +114,7 @@ Provide a professional, localized assessment:
 
 STRICT RULE: Do NOT invent or alter the numerical metrics calculated above. Ground your advice strictly in the values provided.
 """
-        strategy_analysis = GeminiService.generate_content(prompt)
+        strategy_analysis = GeminiService.generate_content(prompt, lang=lang)
         
         return {
             "scenarioA": results_a,

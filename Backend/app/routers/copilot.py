@@ -22,7 +22,10 @@ class RagRequest(BaseModel):
     crop: Optional[str] = None
 
 @router.post("/copilot/chat")
-async def copilot_chat(request: ChatRequest):
+async def copilot_chat(request: ChatRequest, lang: Optional[str] = None):
+    # Determine which language to prioritize
+    active_lang = lang or request.language or "en-IN"
+    
     # Determine which contract is being used
     if request.message is not None and request.field_id is not None:
         # New contract execution
@@ -60,12 +63,12 @@ async def copilot_chat(request: ChatRequest):
             "diseases": "None"
         }
         
-        response = GeminiService.generate_copilot_response(messages_list, context_dict)
+        response = GeminiService.generate_copilot_response(messages_list, context_dict, lang=active_lang)
         return {"response": response, "reply": response}
     
     elif request.messages is not None and request.context is not None:
         # Old contract execution
-        response = GeminiService.generate_copilot_response(request.messages, request.context)
+        response = GeminiService.generate_copilot_response(request.messages, request.context, lang=active_lang)
         return {"response": response}
         
     else:
@@ -116,7 +119,7 @@ def retrieve_knowledge(query: str, crop: Optional[str] = None) -> str:
     return context
 
 @router.post("/knowledge-rag")
-async def query_knowledge_rag(request: RagRequest):
+async def query_knowledge_rag(request: RagRequest, lang: Optional[str] = None):
     try:
         context_chunks = retrieve_knowledge(request.query, request.crop)
         prompt = f"""You are a grounded agricultural AI advisor. You must answer the farmer's question based strictly on the retrieved resources from ICAR, government research, and verified crop guidelines.
@@ -131,7 +134,7 @@ STRICT RULES:
 2. If the retrieved context does not contain enough information to answer, state clearly: "I cannot find this in our verified guidelines." and do NOT fabricate answers.
 3. Show the source title and region used for your answer at the bottom of the response.
 """
-        answer = GeminiService.generate_content(prompt)
+        answer = GeminiService.generate_content(prompt, lang=lang or "en-IN")
         return {
             "answer": answer,
             "sources": context_chunks,

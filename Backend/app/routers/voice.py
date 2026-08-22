@@ -83,7 +83,7 @@ Instruction:
 2. {instruction}
 3. Keep the reply short (max 2-3 sentences) suitable for text-to-speech output.
 """
-        reply = GeminiService.generate_content(prompt)
+        reply = GeminiService.generate_content(prompt, lang=req.language)
         
         # 4. Text-to-Speech translation output
         tts_res = SpeechService.text_to_speech(reply, req.language)

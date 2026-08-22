@@ -97,17 +97,29 @@ class GeminiService:
             except Exception as e:
                 logger.error(f"Error configuring Gemini SDK: {e}")
 
-    @classmethod
-    def generate_plant_diagnosis(cls, image_bytes: bytes, mime_type: str, crop: str = "Unknown", field_id: str = "Unknown", location: str = "Unknown", crop_stage: str = "Unknown") -> dict:
-        feature = "plant_scanner"
-        model_name = "gemini-1.5-flash"
-        start_time = time.time()
+    @staticmethod
+    def _get_lang_instructions(lang: str, is_json: bool = True) -> str:
+        if not lang:
+            return ""
+        lang_lower = lang.lower()
+        if "hi" in lang_lower:
+            lang_name = "Hindi"
+        elif "bn" in lang_lower:
+            lang_name = "Bengali"
+        elif "mr" in lang_lower:
+            lang_name = "Marathi"
+        elif "kn" in lang_lower:
+            lang_name = "Kannada"
+        else:
+            lang_name = "English"
         
-        if settings.TERRAPULSE_DEMO_MODE:
-            latency = (time.time() - start_time) * 1000
-            fallback = cls._get_plant_vision_fallback(crop)
-            AIAuditor.log_operation(model_name, feature, field_id, "v1_plant_scan", latency, True)
-            return fallback
+        if lang_name == "English":
+            return ""
+            
+        if is_json:
+            return f"\nCRITICAL: You must write all textual explanations, values, recommendations, list items, and descriptions in {lang_name}. The JSON keys must remain exactly in English as specified."
+        else:
+            return f"\nCRITICAL: Write your entire response in {lang_name}."
 
     @staticmethod
     def _extract_visual_features(image_bytes: bytes) -> str:
@@ -139,14 +151,14 @@ class GeminiService:
             return f"Image size: {len(image_bytes)} bytes."
 
     @classmethod
-    def generate_plant_diagnosis(cls, image_bytes: bytes, mime_type: str, crop: str = "Unknown", field_id: str = "Unknown", location: str = "Unknown", crop_stage: str = "Unknown") -> dict:
+    def generate_plant_diagnosis(cls, image_bytes: bytes, mime_type: str, crop: str = "Unknown", field_id: str = "Unknown", location: str = "Unknown", crop_stage: str = "Unknown", lang: str = "en-IN") -> dict:
         feature = "plant_scanner"
-        model_name = "gemini-1.5-flash"
+        model_name = "gemini-3.6-flash"
         start_time = time.time()
         
         if settings.TERRAPULSE_DEMO_MODE:
             latency = (time.time() - start_time) * 1000
-            fallback = cls._get_plant_vision_fallback(crop)
+            fallback = cls._get_plant_vision_fallback(crop, lang)
             AIAuditor.log_operation(model_name, feature, field_id, "v1_plant_scan", latency, True)
             return fallback
 
@@ -177,6 +189,7 @@ Strict rules:
 1. Return ONLY the raw JSON block. No markdown wrapper (like ```json), no explaining text.
 2. Be conservative. Do not claim absolute certainty.
 3. If the image is not a plant or leaf, indicate 'Unrecognized Image' in the diagnosis field with low confidence.
+{cls._get_lang_instructions(lang, is_json=True)}
 """
 
         if settings.OPENROUTER_API_KEY:
@@ -227,20 +240,20 @@ Strict rules:
             latency = (time.time() - start_time) * 1000
             logger.error(f"Gemini plant vision analysis failed: {e}. Using fallback.")
             AIAuditor.log_operation(model_name, feature, field_id, "v1_plant_scan", latency, False, str(e))
-            fallback = cls._get_plant_vision_fallback(crop)
+            fallback = cls._get_plant_vision_fallback(crop, lang)
             fallback["source"] = "demo"
             fallback["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
             return fallback
 
     @classmethod
-    def generate_soil_diagnosis(cls, image_bytes: bytes, mime_type: str) -> dict:
+    def generate_soil_diagnosis(cls, image_bytes: bytes, mime_type: str, lang: str = "en-IN") -> dict:
         feature = "soil_scanner"
-        model_name = "gemini-1.5-flash"
+        model_name = "gemini-3.6-flash"
         start_time = time.time()
         
         if settings.TERRAPULSE_DEMO_MODE:
             latency = (time.time() - start_time) * 1000
-            fallback = cls._get_soil_vision_fallback()
+            fallback = cls._get_soil_vision_fallback(lang)
             AIAuditor.log_operation(model_name, feature, "Unknown", "v1_soil_scan", latency, True)
             return fallback
 
@@ -264,6 +277,7 @@ Strict rules:
 1. Return ONLY the raw JSON block. No markdown wrapper (like ```json), no explaining text.
 2. Clearly distinguish visual estimation from laboratory measurements.
 3. NEVER claim exact nutrient percentages (like 'N is 1.2%') from a photograph.
+{cls._get_lang_instructions(lang, is_json=True)}
 """
 
         if settings.OPENROUTER_API_KEY:
@@ -314,21 +328,21 @@ Strict rules:
             latency = (time.time() - start_time) * 1000
             logger.error(f"Gemini soil vision analysis failed: {e}. Using fallback.")
             AIAuditor.log_operation(model_name, feature, "Unknown", "v1_soil_scan", latency, False, str(e))
-            fallback = cls._get_soil_vision_fallback()
+            fallback = cls._get_soil_vision_fallback(lang)
             fallback["source"] = "demo"
             fallback["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
             return fallback
 
     @classmethod
-    def generate_advisory(cls, context: dict) -> dict:
+    def generate_advisory(cls, context: dict, lang: str = "en-IN") -> dict:
         feature = "agronomic_advisory"
-        model_name = "gemini-1.5-flash"
+        model_name = "gemini-3.6-flash"
         field_id = context.get("field_id", "Unknown")
         start_time = time.time()
         
         if settings.TERRAPULSE_DEMO_MODE:
             latency = (time.time() - start_time) * 1000
-            fallback = cls._get_advisory_fallback(context)
+            fallback = cls._get_advisory_fallback(context, lang)
             AIAuditor.log_operation(model_name, feature, field_id, "v1_advisory", latency, True)
             return fallback
         prompt = f"""You are the TerraPulse AI Senior Agronomist. Generate a structured farm advisory based on this field context:
@@ -376,6 +390,7 @@ Strict rules:
 1. Return ONLY the raw JSON block. No markdown wrapper (like ```json), no explaining text.
 2. EXPLAIN RECOMMENDATIONS USING ACTUAL NUMERICAL OBSERVATIONS provided in the context (NDVI, NDVI change, temperature, rainfall, soil moisture).
 3. Do NOT invent, guess, or change any of the satellite or weather measurements. If a number is missing, discuss only the numbers present.
+{cls._get_lang_instructions(lang, is_json=True)}
 """
 
         # --- Try OpenRouter first ---
@@ -406,7 +421,7 @@ Strict rules:
         # --- Fallback to Gemini SDK ---
         cls._initialize()
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-3.6-flash")
             response = model.generate_content(
                 prompt,
                 generation_config={"response_mime_type": "application/json"}
@@ -421,25 +436,25 @@ Strict rules:
             data["riskStatus"] = data["risk_level"]
             data["dataSource"] = "LIVE — Gemini Advisor"
             
-            AIAuditor.log_operation("gemini-1.5-flash", feature, field_id, "v1_advisory", latency, True)
+            AIAuditor.log_operation("gemini-3.6-flash", feature, field_id, "v1_advisory", latency, True)
             return data
         except Exception as e:
             latency = (time.time() - start_time) * 1000
             logger.error(f"Gemini advisory generation failed: {e}. Using fallback.")
             AIAuditor.log_operation(model_name, feature, field_id, "v1_advisory", latency, False, str(e))
-            fallback = cls._get_advisory_fallback(context)
+            fallback = cls._get_advisory_fallback(context, lang)
             fallback["dataSource"] = "DEMO — Gemini Fallback"
             return fallback
 
     @classmethod
-    def generate_rotation_comparison(cls, computed: dict) -> dict:
+    def generate_rotation_comparison(cls, computed: dict, lang: str = "en-IN") -> dict:
         feature = "carbon_rotation_compare"
-        model_name = "gemini-1.5-flash"
+        model_name = "gemini-3.6-flash"
         start_time = time.time()
         
         if settings.TERRAPULSE_DEMO_MODE:
             latency = (time.time() - start_time) * 1000
-            fallback = cls._get_rotation_fallback(computed)
+            fallback = cls._get_rotation_fallback(computed, lang)
             AIAuditor.log_operation(model_name, feature, "All", "v1_carbon_compare", latency, True)
             return fallback
 
@@ -489,6 +504,7 @@ Strict rules:
 1. Return ONLY the raw JSON block. No markdown wrapper (like ```json), no explaining text.
 2. Focus entirely on explaining why the recommended strategy is best based on the provided numbers.
 3. Do NOT invent, guess, or modify the numerical calculations. The numbers are owned by the deterministic engine.
+{cls._get_lang_instructions(lang, is_json=True)}
 """
             response = model.generate_content(
                 prompt,
@@ -503,18 +519,18 @@ Strict rules:
             latency = (time.time() - start_time) * 1000
             logger.error(f"Gemini carbon rotation comparison failed: {e}. Using fallback.")
             AIAuditor.log_operation(model_name, feature, "All", "v1_carbon_compare", latency, False, str(e))
-            return cls._get_rotation_fallback(computed)
+            return cls._get_rotation_fallback(computed, lang)
 
     @classmethod
-    def generate_copilot_response(cls, messages: list, context: dict) -> str:
+    def generate_copilot_response(cls, messages: list, context: dict, lang: str = "en-IN") -> str:
         feature = "copilot_chat"
-        model_name = "gemini-1.5-flash"
+        model_name = "gemini-3.6-flash"
         field_id = context.get("fieldName", "Unknown")
         start_time = time.time()
         
         if settings.TERRAPULSE_DEMO_MODE:
             latency = (time.time() - start_time) * 1000
-            fallback = cls._get_copilot_chat_fallback(messages, context)
+            fallback = cls._get_copilot_chat_fallback(messages, context, lang)
             AIAuditor.log_operation(model_name, feature, field_id, "v1_copilot", latency, True)
             return fallback
 
@@ -544,6 +560,7 @@ STRICT RULES:
    - INFERRED: (your agronomic reasoning and inferences)
    - RECOMMENDED: (action and urgency)
 3. Keep it farmer-friendly and highly practical.
+{cls._get_lang_instructions(lang, is_json=False)}
 """
 
         # --- Try OpenRouter first (reliable, with retry on 429) ---
@@ -582,16 +599,18 @@ STRICT RULES:
             latency = (time.time() - start_time) * 1000
             logger.error(f"Gemini copilot chat failed: {e}. Using fallback.")
             AIAuditor.log_operation(model_name, feature, field_id, "v1_copilot", latency, False, str(e))
-            return cls._get_copilot_chat_fallback(messages, context)
+            return cls._get_copilot_chat_fallback(messages, context, lang)
 
     @classmethod
-    def generate_content(cls, prompt: str) -> str:
+    def generate_content(cls, prompt: str, lang: str = "en-IN") -> str:
         # Check if in Demo Mode and return high-fidelity dynamic fallbacks
         if settings.TERRAPULSE_DEMO_MODE:
-            return cls._get_unstructured_fallback(prompt)
+            return cls._get_unstructured_fallback(prompt, lang)
+
+        prompt_with_lang = f"{prompt}\n{cls._get_lang_instructions(lang, is_json=False)}"
 
         # --- Try OpenRouter first (with retry on 429) ---
-        resp_json = cls._openrouter_request([{"role": "user", "content": prompt}], timeout=30)
+        resp_json = cls._openrouter_request([{"role": "user", "content": prompt_with_lang}], timeout=30)
         if resp_json:
             try:
                 return resp_json["choices"][0]["message"]["content"].strip()
@@ -601,15 +620,15 @@ STRICT RULES:
         # --- Fallback to Gemini SDK ---
         cls._initialize()
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(prompt)
+            model = genai.GenerativeModel("gemini-3.6-flash")
+            response = model.generate_content(prompt_with_lang)
             return response.text
         except Exception as e:
             logger.error(f"Gemini unstructured content generation failed: {e}. Using fallback.")
-            return cls._get_unstructured_fallback(prompt)
+            return cls._get_unstructured_fallback(prompt, lang)
 
     @staticmethod
-    def _get_unstructured_fallback(prompt: str) -> str:
+    def _get_unstructured_fallback(prompt: str, lang: str = "en-IN") -> str:
         prompt_lower = prompt.lower()
         
         # 1. NDVI Change Explanation fallback
@@ -633,19 +652,19 @@ STRICT RULES:
             
             if change_val < 0:
                 return (
-                    f"OBSERVED SATELLITE FACTS:\n"
-                    f"- NDVI decreased by {abs(change_val):.1f}% due to active vegetative stress.\n"
-                    f"- Soil moisture ({moisture_val}%) and temperature ({temp_val}°C) indicate drying conditions.\n\n"
-                    f"AI-INFERRED CAUSES:\n"
-                    f"- High thermal stress combined with water depletion is accelerating chlorophyll degradation in the {crop} canopy."
+                     f"OBSERVED SATELLITE FACTS:\n"
+                     f"- NDVI decreased by {abs(change_val):.1f}% due to active vegetative stress.\n"
+                     f"- Soil moisture ({moisture_val}%) and temperature ({temp_val}°C) indicate drying conditions.\n\n"
+                     f"AI-INFERRED CAUSES:\n"
+                     f"- High thermal stress combined with water depletion is accelerating chlorophyll degradation in the {crop} canopy."
                 )
             else:
                 return (
-                    f"OBSERVED SATELLITE FACTS:\n"
-                    f"- NDVI increased by {change_val:.1f}%, indicating active vegetative growth.\n"
-                    f"- Soil moisture is stable at {moisture_val}% under {temp_val}°C conditions.\n\n"
-                    f"AI-INFERRED CAUSES:\n"
-                    f"- Stable chlorophyll absorption is confirmed for the {crop} canopy. Photosynthetic activity remains healthy."
+                     f"OBSERVED SATELLITE FACTS:\n"
+                     f"- NDVI increased by {change_val:.1f}%, indicating active vegetative growth.\n"
+                     f"- Soil moisture is stable at {moisture_val}% under {temp_val}°C conditions.\n\n"
+                     f"AI-INFERRED CAUSES:\n"
+                     f"- Stable chlorophyll absorption is confirmed for the {crop} canopy. Photosynthetic activity remains healthy."
                 )
                 
         # 2. Risk score explanation fallback
@@ -670,10 +689,10 @@ STRICT RULES:
             moisture = float(moisture_match.group(1)) if moisture_match else 28.0
             
             return (
-                f"The agricultural risk is rated {status} ({score}/100) for this {crop} parcel due to:\n"
-                f"- Soil moisture levels at {moisture}% being below the recommended 35% baseline.\n"
-                f"- Negative trends in the vegetation index showing localized stress.\n"
-                f"Immediate sprinkler cycles are recommended to stabilize crop vigor."
+                 f"The agricultural risk is rated {status} ({score}/100) for this {crop} parcel due to:\n"
+                 f"- Soil moisture levels at {moisture}% being below the recommended 35% baseline.\n"
+                 f"- Negative trends in the vegetation index showing localized stress.\n"
+                 f"Immediate sprinkler cycles are recommended to stabilize crop vigor."
             )
             
         return "Standard agronomic monitoring is active. Soil moisture and NDVI parameters are within normal baseline fluctuations."
@@ -681,7 +700,7 @@ STRICT RULES:
     # --- FALLBACK GENERATORS ---
 
     @staticmethod
-    def _get_plant_vision_fallback(crop: str) -> dict:
+    def _get_plant_vision_fallback(crop: str, lang: str = "en-IN") -> dict:
         if "wheat" in crop.lower():
             return {
                 "diagnosis": "Wheat Brown Rust (Puccinia recondita)",
@@ -708,7 +727,7 @@ STRICT RULES:
             }
 
     @staticmethod
-    def _get_soil_vision_fallback() -> dict:
+    def _get_soil_vision_fallback(lang: str = "en-IN") -> dict:
         return {
             "soil_condition": "Clay loam structure with noticeable surface dryness, light compaction cracks, and crumbly aggregates.",
             "degradation_indicators": ["Slight wind erosion crusting", "Moderate cracking from dehydration"],
@@ -721,7 +740,7 @@ STRICT RULES:
         }
 
     @staticmethod
-    def _get_advisory_fallback(context: dict) -> dict:
+    def _get_advisory_fallback(context: dict, lang: str = "en-IN") -> dict:
         ndvi = context.get("ndvi", 0.54)
         moisture = context.get("moisture", 28)
         crop = context.get("crop", "Cotton")
@@ -765,7 +784,7 @@ STRICT RULES:
         }
 
     @staticmethod
-    def _get_rotation_fallback(computed: dict) -> dict:
+    def _get_rotation_fallback(computed: dict, lang: str = "en-IN") -> dict:
         return {
             "recommended_strategy": "Scenario B (Regenerative Rotation)",
             "why": f"Scenario B achieves the highest projected Soil Organic Carbon (SOC) increase (from {computed['scenarioA']['socCurrent']}% to {computed['scenarioB']['socProjected']}%) and yields {computed['scenarioB']['annualCredits']} carbon credits per year, which is 20% higher than the baseline.",
@@ -774,7 +793,7 @@ STRICT RULES:
         }
 
     @staticmethod
-    def _get_copilot_chat_fallback(messages: list, context: dict) -> str:
+    def _get_copilot_chat_fallback(messages: list, context: dict, lang: str = "en-IN") -> str:
         last_msg = messages[-1]["content"].lower() if messages else ""
         crop = context.get("crop", "Cotton")
         ndvi = context.get("ndvi", 0.54)

@@ -72,6 +72,17 @@ TerraPulse AI provides an intuitive, high-performance platform that unifies real
   - **Carbon Sequestration Rate** ($tCO_2e/\text{acre}/\text{year}$).
   - **Annual Carbon Credit Forecast** ($tCO_2e$) for voluntary carbon markets.
 
+### 🌐 Global Multilingual Localization System
+- **Unified Global Locale**: Immediate, client-side, page-reload-free language switching across the entire dashboard application.
+- **Regional Languages**: Fully supports 5 major agricultural languages of India:
+  - English (`en-IN`)
+  - Hindi (`hi-IN`)
+  - Bengali (`bn-IN`)
+  - Marathi (`mr-IN`)
+  - Kannada (`kn-IN`)
+- **Backend LLM Localization**: Passes the selected language context to the backend Gemini AI generation prompts. Translates AI strategic analyses, RAG outputs, scanner descriptions, and copilot responses on-the-fly while strictly keeping JSON schemas in English to maintain visual compatibility.
+- **T-Hook Enhancements**: Built-in default string parameter fallbacks on hook queries to guarantee zero unlocalized UI glitches.
+
 ---
 
 ## 🏗️ System Architecture
@@ -260,6 +271,7 @@ VITE_ENABLE_MOCK_SERVICES=true
 | **Backend REST API** | ✅ **Completed** | High-performance FastAPI server with 11 router endpoints, integrated config loaders, and schema validation |
 | **Live Satellite Proxy** | ✅ **Completed** | Earth Engine Service telemetry computation and simulation for all registered farm fields |
 | **AI Advisory & Copilot** | ✅ **Completed** | Gemini-powered local and regional agricultural advice & contextual chat system |
+| **Global Multilingual System** | ✅ **Completed** | Unified localization supporting English, Hindi, Bengali, Marathi, and Kannada across all pages and AI prompts |
 
 ---
 
@@ -268,7 +280,6 @@ VITE_ENABLE_MOCK_SERVICES=true
 - **Live Satellite Data Pipeline:** Integration with Copernicus Sentinel-2 API for automated 5-day NDVI updates.
 - **IoT Telemetry Ingestion:** Support for MQTT soil moisture & temperature sensor streams.
 - **PDF Certification Export:** Exportable carbon sequestration verification reports for voluntary market auditors.
-- **Multilingual Support:** Localized advice in regional agricultural languages.
 
 ---
 

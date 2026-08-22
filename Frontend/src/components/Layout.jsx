@@ -15,18 +15,21 @@ import {
   Globe,
 } from "lucide-react";
 
+import { useTranslation } from "../hooks/useTranslation.jsx";
+
 const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/farm-health", label: "Farm Health", icon: MapIcon },
-  { to: "/ai-scanner", label: "AI Scanner", icon: ScanLine },
-  { to: "/carbon-simulator", label: "Carbon Simulator", icon: Calculator },
-  { to: "/copilot", label: "AI Farm Copilot", icon: MessageSquare },
-  { to: "/actions", label: "Action Center", icon: CheckSquare },
-  { to: "/india-intelligence", label: "India Intelligence", icon: Globe },
+  { to: "/dashboard", key: "nav.dashboard", icon: LayoutDashboard },
+  { to: "/farm-health", key: "nav.farmHealth", icon: MapIcon },
+  { to: "/ai-scanner", key: "nav.aiScanner", icon: ScanLine },
+  { to: "/carbon-simulator", key: "nav.carbonSimulator", icon: Calculator },
+  { to: "/copilot", key: "nav.aiFarmCopilot", icon: MessageSquare },
+  { to: "/actions", key: "nav.actionCenter", icon: CheckSquare },
+  { to: "/india-intelligence", key: "nav.indiaIntelligence", icon: Globe },
 ];
 
 export function Sidebar({ open, onClose }) {
   const { profile } = useAuth();
+  const { t } = useTranslation();
 
   let regionName = "Pune Region";
   if (profile?.location) {
@@ -58,14 +61,14 @@ export function Sidebar({ open, onClose }) {
               className={({ isActive }) => `tp-nav-link ${isActive ? "active" : ""}`}
             >
               <item.icon size={18} />
-              <span>{item.label}</span>
+              <span>{t(item.key)}</span>
             </NavLink>
           ))}
         </nav>
         <div className="tp-sidebar-foot">
           <div className="tp-sidebar-foot-card">
             <div className="tp-sidebar-foot-title">TerraPulse AI Network</div>
-            <div className="tp-sidebar-foot-sub">Active Node · {regionName}</div>
+            <div className="tp-sidebar-foot-sub">{t("nav.activeNode")} · {regionName}</div>
           </div>
         </div>
       </aside>
@@ -74,15 +77,12 @@ export function Sidebar({ open, onClose }) {
 }
 
 export function Topbar({ onMenu }) {
-  const [lang, setLang] = useState(localStorage.getItem("tp-lang") || "en");
+  const { shortCode, changeLanguage, t } = useTranslation();
   const [appMode, setAppMode] = useState(localStorage.getItem("tp-app-mode") || "demo");
   const { user, profile, logOut } = useAuth();
 
   const handleLangChange = (e) => {
-    const val = e.target.value;
-    localStorage.setItem("tp-lang", val);
-    setLang(val);
-    window.dispatchEvent(new Event("tp-lang-changed"));
+    changeLanguage(e.target.value);
   };
 
   const handleModeChange = (mode) => {
@@ -99,7 +99,7 @@ export function Topbar({ onMenu }) {
       <div className="tp-topbar-title">{profile?.farmName || "Green Valley Farm"}</div>
       <div className="tp-topbar-right" style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <select
-          value={lang}
+          value={shortCode}
           onChange={handleLangChange}
           className="tp-select"
           style={{ width: "auto", padding: "4px 8px", fontSize: "0.85rem", height: 32, border: "2.5px solid #111827", borderRadius: 8, background: "#ffffff", fontWeight: 700 }}
@@ -168,7 +168,7 @@ export function Topbar({ onMenu }) {
                 fontWeight: 700
               }}
             >
-              Sign Out
+              {t("nav.logout")}
             </button>
           </div>
         )}

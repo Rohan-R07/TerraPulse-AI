@@ -5,6 +5,8 @@ import { Card, CardTitle, Field, Input, Button, Tabs } from "../components/ui.js
 import { ShieldCheck, Mail, Lock, User, Sparkles } from "lucide-react";
 import logo from "../assets/logo.png";
 
+import { useTranslation } from "../hooks/useTranslation.jsx";
+
 export default function Login() {
   const [tab, setTab] = useState("signin"); // signin | signup
   const [email, setEmail] = useState("");
@@ -12,6 +14,7 @@ export default function Login() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -33,7 +36,7 @@ export default function Login() {
       navigate(from, { replace: true });
     } catch (err) {
       console.error(err);
-      setError(err.message || "Authentication failed. Please check your credentials.");
+      setError(err.message || t("states.error"));
     } finally {
       setLoading(false);
     }
@@ -52,10 +55,10 @@ export default function Login() {
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <img src={logo} alt="TerraPulse AI" style={{ height: 50, objectFit: "contain", marginBottom: 12 }} />
           <h2 style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--tp-neutral-900)" }}>
-            Agronomic Intelligence Node
+            {t("login.title")}
           </h2>
           <p className="tp-hint" style={{ marginTop: 4 }}>
-            Secure sign in to your regenerative farm network
+            {t("login.subtitle")}
           </p>
         </div>
 
@@ -63,8 +66,8 @@ export default function Login() {
           <div style={{ marginBottom: 20 }}>
             <Tabs
               tabs={[
-                { id: "signin", label: "Sign In" },
-                { id: "signup", label: "Create Account" }
+                { id: "signin", label: t("login.tabSignIn") },
+                { id: "signup", label: t("login.tabSignUp") }
               ]}
               active={tab}
               onChange={(t) => { setTab(t); setError(""); }}
@@ -86,7 +89,7 @@ export default function Login() {
             )}
 
             {tab === "signup" && (
-              <Field label="Full Name" required>
+              <Field label={t("login.name")} required>
                 <div style={{ position: "relative" }}>
                   <User size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--tp-neutral-500)" }} />
                   <Input
@@ -101,7 +104,7 @@ export default function Login() {
               </Field>
             )}
 
-            <Field label="Email Address" required>
+            <Field label={t("login.email")} required>
               <div style={{ position: "relative" }}>
                 <Mail size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--tp-neutral-500)" }} />
                 <Input
@@ -115,7 +118,7 @@ export default function Login() {
               </div>
             </Field>
 
-            <Field label="Password" required>
+            <Field label={t("login.password")} required>
               <div style={{ position: "relative" }}>
                 <Lock size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--tp-neutral-500)" }} />
                 <Input
@@ -130,10 +133,10 @@ export default function Login() {
             </Field>
 
             <Button variant="primary" type="submit" disabled={loading} style={{ width: "100%", height: 44, marginTop: 8 }}>
-              {loading ? "Authenticating..." : (
+              {loading ? t("login.btnAuth") : (
                 <span className="tp-row" style={{ justifyContent: "center", gap: 8 }}>
                   <ShieldCheck size={18} />
-                  {tab === "signin" ? "Sign In to Farm" : "Register Farm Account"}
+                  {tab === "signin" ? t("login.btnSignIn") : t("login.btnSignUp")}
                 </span>
               )}
             </Button>
@@ -141,7 +144,7 @@ export default function Login() {
         </Card>
 
         <div style={{ textAlign: "center", marginTop: 20, fontSize: "0.78rem", color: "var(--tp-neutral-500)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <Sparkles size={12} /> Powered by Firebase Auth & MongoDB Persistent Ledger
+          <Sparkles size={12} /> {t("login.footer")}
         </div>
       </div>
     </div>

@@ -17,7 +17,8 @@ async def scan_plant(
     crop: Optional[str] = Form(None),
     field_id: Optional[str] = Form(None),
     location: Optional[str] = Form(None),
-    crop_stage: Optional[str] = Form(None)
+    crop_stage: Optional[str] = Form(None),
+    lang: Optional[str] = None
 ):
     validate_uploaded_image(image)
     try:
@@ -30,7 +31,8 @@ async def scan_plant(
             crop=crop or "Cotton",
             field_id=field_id or "Unknown Field",
             location=location or "Pune, Maharashtra",
-            crop_stage=crop_stage or "Flowering"
+            crop_stage=crop_stage or "Flowering",
+            lang=lang or "en-IN"
         )
         
         # Build backwards compatible analysis string
@@ -81,13 +83,13 @@ async def scan_plant(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/soil")
-async def scan_soil(image: UploadFile = File(...)):
+async def scan_soil(image: UploadFile = File(...), lang: Optional[str] = None):
     validate_uploaded_image(image)
     try:
         image_bytes = await image.read()
         
         # Call structured Gemini soil analysis
-        soil = GeminiService.generate_soil_diagnosis(image_bytes, image.content_type)
+        soil = GeminiService.generate_soil_diagnosis(image_bytes, image.content_type, lang=lang or "en-IN")
         
         degradation_str = ", ".join(soil.get("degradation_indicators", []))
         compaction_str = ", ".join(soil.get("compaction_indicators", []))

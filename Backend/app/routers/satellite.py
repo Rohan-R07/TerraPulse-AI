@@ -2,7 +2,7 @@ import time
 import json
 import logging
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.schemas.satellite import NdviChangeRequest, RiskRequest, SatelliteLatestResponse, SatelliteHistoryResponse
 from app.services.earth_engine_service import EarthEngineService
 from app.services.risk_engine import RiskEngine
@@ -45,7 +45,7 @@ async def get_satellite_layers(field_id: str):
     }
 
 @router.post("/ndvi-change")
-async def ndvi_change_explain(request: NdviChangeRequest):
+async def ndvi_change_explain(request: NdviChangeRequest, lang: Optional[str] = None):
     change_pct = ((request.current_ndvi - request.prev_ndvi) / request.prev_ndvi) * 100
     
     prompt = f"""You are an agricultural intelligence specialist. Analyze a change in NDVI vegetation health for a field:
@@ -64,7 +64,7 @@ STRICT RULE: Clearly distinguish:
 
 Keep the explanation concise and actionable.
 """
-    explanation = GeminiService.generate_content(prompt)
+    explanation = GeminiService.generate_content(prompt, lang=lang or "en-IN")
     
     return {
         "changePct": float(f"{change_pct:.1f}"),
@@ -74,7 +74,7 @@ Keep the explanation concise and actionable.
     }
 
 @router.get("/intelligence/{field_id}/change")
-async def get_field_change_intelligence(field_id: str):
+async def get_field_change_intelligence(field_id: str, lang: Optional[str] = None):
     # Fetch field details
     field = FirestoreService.get_field(field_id) or {
         "fieldName": "West Field",
@@ -123,7 +123,7 @@ Strict rules:
    - INFERRED: (Agronomic causes like evapotranspiration, irrigation delay, or compaction)
 """
     try:
-        response_text = GeminiService.generate_content(prompt)
+        response_text = GeminiService.generate_content(prompt, lang=lang or "en-IN")
         # Parse JSON
         # Handle cases where markdown wrapper is returned anyway
         clean_text = re.sub(r"```json|```", "", response_text).strip()
@@ -152,7 +152,7 @@ INFERRED:
 import re  # added for cleaning markdown wrappers if returned
 
 @router.post("/risk")
-async def calculate_risk(request: RiskRequest):
+async def calculate_risk(request: RiskRequest, lang: Optional[str] = None):
     return RiskEngine.calculate_risk(
         ndvi=request.ndvi,
         ndvi_change=request.ndvi_change,
@@ -162,5 +162,6 @@ async def calculate_risk(request: RiskRequest):
         crop=request.crop,
         crop_stage=request.crop_stage,
         soil_type=request.soil_type,
-        diseases=request.diseases
+        diseases=request.diseases,
+        lang=lang or "en-IN"
     )

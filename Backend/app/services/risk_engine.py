@@ -14,7 +14,8 @@ class RiskEngine:
         crop: str,
         crop_stage: str,
         soil_type: str,
-        diseases: str
+        diseases: str,
+        lang: str = "en-IN"
     ) -> dict:
         # Baseline score
         score = 15.0
@@ -68,7 +69,7 @@ Parameters:
 Explain why this risk score was calculated, summarizing the primary risk factors, urgency of intervention, and immediate recommended steps. 
 STRICT RULE: Do NOT generate a different numerical score. Ground your explanation exactly in the calculated score of {score}/100 ({status}).
 """
-        explanation = GeminiService.generate_content(prompt)
+        explanation = GeminiService.generate_content(prompt, lang=lang)
         
         return {
             "riskScore": score,

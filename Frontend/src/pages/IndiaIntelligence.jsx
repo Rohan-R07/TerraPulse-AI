@@ -8,9 +8,11 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import {
   Globe, Search, MapPin, AlertTriangle, ShieldCheck, BookOpen, Users, Compass, HelpCircle
 } from "lucide-react";
+import { useTranslation } from "../hooks/useTranslation.jsx";
 
 export default function IndiaIntelligence() {
   const { profile } = useAuth();
+  const { t } = useTranslation();
 
   // Filters
   const [state, setState] = useState("Maharashtra");
@@ -77,7 +79,7 @@ export default function IndiaIntelligence() {
       setRagResult(res);
     } catch (err) {
       console.error(err);
-      setRagResult({ answer: "Search failed. Make sure the backend server is reachable." });
+      setRagResult({ answer: t("states.error") });
     } finally {
       setRagLoading(false);
     }
@@ -86,14 +88,14 @@ export default function IndiaIntelligence() {
   return (
     <div>
       <div className="tp-page-head">
-        <h1>India Agricultural Intelligence</h1>
-        <p>National and regional data aggregation. Monitor crop health trends, cooperative water stress warnings, and lookup verified ICAR guidelines.</p>
+        <h1>{t("indiaIntel.title")}</h1>
+        <p>{t("indiaIntel.subtitle")}</p>
       </div>
 
       {/* Dropdown Filters */}
       <Card style={{ marginBottom: 20 }}>
         <div className="tp-grid tp-grid-4">
-          <Field label="State / Region">
+          <Field label={t("indiaIntel.stateLabel", "State / Region")}>
             <Select value={state} onChange={(e) => setState(e.target.value)}>
               <option value="Maharashtra">Maharashtra (Deccan)</option>
               <option value="Karnataka">Karnataka (Southern Vertisols)</option>
@@ -107,7 +109,7 @@ export default function IndiaIntelligence() {
             </Select>
           </Field>
 
-          <Field label="District">
+          <Field label={t("indiaIntel.districtLabel", "District")}>
             <Select value={district} onChange={(e) => setDistrict(e.target.value)}>
               {state === "Maharashtra" ? (
                 <>
@@ -132,20 +134,20 @@ export default function IndiaIntelligence() {
             </Select>
           </Field>
 
-          <Field label="Crop Spec">
+          <Field label={t("indiaIntel.cropSpecLabel", "Crop Spec")}>
             <Select value={crop} onChange={(e) => setCrop(e.target.value)}>
-              <option value="Cotton">Cotton (Kharif Cash)</option>
-              <option value="Wheat">Wheat (Rabi Staple)</option>
-              <option value="Rice">Rice Paddy</option>
-              <option value="Soybeans">Soybeans</option>
+              <option value="Cotton">{t("simulator.cropCotton", "Cotton")}</option>
+              <option value="Wheat">{t("simulator.cropWheat", "Wheat")}</option>
+              <option value="Rice">{t("simulator.cropRice", "Rice Paddy")}</option>
+              <option value="Soybeans">{t("simulator.cropSoybean", "Soybeans")}</option>
             </Select>
           </Field>
 
-          <Field label="Season">
+          <Field label={t("indiaIntel.seasonLabel", "Season")}>
             <Select value={season} onChange={(e) => setSeason(e.target.value)}>
-              <option value="Kharif">Kharif (Monsoon)</option>
-              <option value="Rabi">Rabi (Winter)</option>
-              <option value="Zaid">Zaid (Summer)</option>
+              <option value="Kharif">{t("indiaIntel.seasonKharif", "Kharif (Monsoon)")}</option>
+              <option value="Rabi">{t("indiaIntel.seasonRabi", "Rabi (Winter)")}</option>
+              <option value="Zaid">{t("indiaIntel.seasonZaid", "Zaid (Summer)")}</option>
             </Select>
           </Field>
         </div>
@@ -159,27 +161,27 @@ export default function IndiaIntelligence() {
           <>
             <Card>
               <div className="tp-stat">
-                <span className="tp-stat-label">Active Node Connections</span>
-                <span className="tp-stat-value">{metricsData.monitoredFarms} farms</span>
-                <span className="tp-hint" style={{ color: "var(--tp-green-600)", fontWeight: 700 }}>{state} Regional Pool</span>
+                <span className="tp-stat-label">{t("indiaIntel.activeConnections", "Active Node Connections")}</span>
+                <span className="tp-stat-value">{metricsData.monitoredFarms} {t("labels.farms", "farms")}</span>
+                <span className="tp-hint" style={{ color: "var(--tp-green-600)", fontWeight: 700 }}>{state} {t("indiaIntel.regionalPool", "Regional Pool")}</span>
               </div>
             </Card>
 
             <Card>
               <div className="tp-stat">
-                <span className="tp-stat-label">Crop Water Stress</span>
+                <span className="tp-stat-label">{t("indiaIntel.cropWaterStress", "Crop Water Stress")}</span>
                 <span className="tp-stat-value" style={{ color: metricsData.waterStress > 50 ? "var(--tp-error)" : "var(--tp-warning)" }}>
                   {metricsData.waterStress}%
                 </span>
-                <span className="tp-hint">Monitored groundwater depleting</span>
+                <span className="tp-hint">{t("indiaIntel.groundwaterDepleting", "Monitored groundwater depleting")}</span>
               </div>
             </Card>
 
             <Card>
               <div className="tp-stat">
-                <span className="tp-stat-label">Regenerative Adoption Rate</span>
+                <span className="tp-stat-label">{t("indiaIntel.adoptionRate", "Regenerative Adoption Rate")}</span>
                 <span className="tp-stat-value" style={{ color: "var(--tp-green-600)" }}>{metricsData.regenAdoption}%</span>
-                <span className="tp-hint">Cover crop & AWD adoption</span>
+                <span className="tp-hint">{t("indiaIntel.adoptionDetails", "Cover crop & AWD adoption")}</span>
               </div>
             </Card>
           </>
@@ -191,15 +193,15 @@ export default function IndiaIntelligence() {
       <div className="tp-grid tp-grid-2">
         {/* Cooperative Insights (State Alerts) */}
         <Card>
-          <CardTitle icon={Users}>Cooperative Community Alerts</CardTitle>
+          <CardTitle icon={Users}>{t("indiaIntel.coopAlerts", "Cooperative Community Alerts")}</CardTitle>
           <p className="tp-card-sub" style={{ marginBottom: 16 }}>
-            Shared insights between regional nodes. Cooperatively alerts neighbors on pest outbreaks or groundwater over-draws.
+            {t("indiaIntel.coopAlertsSub", "Shared insights between regional nodes. Cooperatively alerts neighbors on pest outbreaks or groundwater over-draws.")}
           </p>
 
           {insightsLoading ? (
             <div className="tp-stack">{[...Array(2)].map((_, i) => <Skeleton key={i} h={70} />)}</div>
           ) : insightsData.length === 0 ? (
-            <p className="tp-hint">No alerts reported in this region.</p>
+            <p className="tp-hint">{t("indiaIntel.noAlerts", "No alerts reported in this region.")}</p>
           ) : (
             <div className="tp-stack" style={{ gap: 12 }}>
               {insightsData.map((ins, i) => (
@@ -213,7 +215,7 @@ export default function IndiaIntelligence() {
                   <div className="tp-grow">
                     <div className="tp-row" style={{ justifyContent: "space-between" }}>
                       <strong style={{ fontSize: "0.86rem" }}>{ins.title}</strong>
-                      <Badge variant={ins.severity === "Critical" ? "error" : "warning"}>{ins.severity}</Badge>
+                      <Badge variant={ins.severity === "Critical" ? "error" : "warning"}>{ins.severity === "Critical" ? t("farmHealth.urgent") : t("farmHealth.pending")}</Badge>
                     </div>
                     <div style={{ fontSize: "0.8rem", color: "var(--tp-neutral-600)", marginTop: 2 }}>{ins.detail}</div>
                   </div>
@@ -225,9 +227,9 @@ export default function IndiaIntelligence() {
 
         {/* Agricultural RAG (ICAR Retrieval) */}
         <Card style={{ display: "flex", flexDirection: "column" }}>
-          <CardTitle icon={BookOpen}>Authoritative ICAR Knowledge RAG</CardTitle>
+          <CardTitle icon={BookOpen}>{t("indiaIntel.ragTitle", "Authoritative ICAR Knowledge RAG")}</CardTitle>
           <p className="tp-card-sub" style={{ marginBottom: 12 }}>
-            Search verified guidelines from the Indian Council of Agricultural Research. Returns context-anchored regenerative practices.
+            {t("indiaIntel.ragSubtitle", "Search verified guidelines from the Indian Council of Agricultural Research. Returns context-anchored regenerative practices.")}
           </p>
 
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -236,7 +238,7 @@ export default function IndiaIntelligence() {
               value={ragQuery}
               onChange={(e) => setRagQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleRagSearch()}
-              placeholder="e.g. Sowing window for wheat, alternate wetting and drying"
+              placeholder={t("indiaIntel.ragPlaceholder", "e.g. Sowing window for wheat, alternate wetting and drying")}
               style={{
                 flex: 1,
                 padding: "8px 12px",
@@ -268,7 +270,7 @@ export default function IndiaIntelligence() {
               </div>
               
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Badge variant="success"><ShieldCheck size={12} /> Verified Guideline</Badge>
+                <Badge variant="success"><ShieldCheck size={12} /> {t("indiaIntel.verifiedGuideline", "Verified Guideline")}</Badge>
                 {ragResult.dataSource && (
                   <span className="tp-hint" style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--tp-green-600)" }}>
                     {ragResult.dataSource}
@@ -281,8 +283,8 @@ export default function IndiaIntelligence() {
           {!ragResult && !ragLoading && (
             <div className="tp-state" style={{ flex: 1, padding: "20px 0" }}>
               <Compass size={32} style={{ color: "var(--tp-neutral-300)" }} />
-              <div style={{ fontSize: "0.8rem", fontWeight: 700, marginTop: 4 }}>Ask a question</div>
-              <p style={{ fontSize: "0.78rem" }}>Retrieve regional practices for India-scale wheat, rice, or cotton.</p>
+              <div style={{ fontSize: "0.8rem", fontWeight: 700, marginTop: 4 }}>{t("indiaIntel.askQuestion", "Ask a question")}</div>
+              <p style={{ fontSize: "0.78rem" }}>{t("indiaIntel.ragPrompt", "Retrieve regional practices for India-scale wheat, rice, or cotton.")}</p>
             </div>
           )}
         </Card>

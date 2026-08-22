@@ -6,10 +6,12 @@ import {
 import {
   CheckSquare, ClipboardList, Plus, Calendar, AlertTriangle, AlertCircle, X, ShieldAlert, Sparkles
 } from "lucide-react";
+import { useTranslation } from "../hooks/useTranslation.jsx";
 
 const priorityVariant = (p) => (p === "High" ? "error" : p === "Medium" ? "warning" : "neutral");
 
 export default function ActionCenter() {
+  const { t } = useTranslation();
   const [actions, setActions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -38,7 +40,7 @@ export default function ActionCenter() {
       const data = await actionService.listActions();
       setActions(data);
     } catch (e) {
-      setError("Failed to fetch actions from database.");
+      setError(t("states.error"));
     } finally {
       setLoading(false);
     }
@@ -111,8 +113,8 @@ export default function ActionCenter() {
   return (
     <div>
       <div className="tp-page-head">
-        <h1>Farm Action Center</h1>
-        <p>Log, coordinate, and review agricultural decision actions. Maintain a verifiable ledger of management interventions.</p>
+        <h1>{t("actions.title")}</h1>
+        <p>{t("actions.subtitle")}</p>
       </div>
 
       {error && (
@@ -140,13 +142,13 @@ export default function ActionCenter() {
                   transition: "all 0.1s"
                 }}
               >
-                {tab === "PENDING" ? "PENDING ACTIONS" : tab === "COMPLETED" ? "COMPLETED LEDGER" : "ALL ACTIVE"}
+                {tab === "PENDING" ? t("actions.tabPending", "PENDING ACTIONS") : tab === "COMPLETED" ? t("actions.tabCompleted", "COMPLETED LEDGER") : t("actions.tabAll", "ALL ACTIVE")}
               </button>
             ))}
           </div>
 
           <Button variant="primary" onClick={() => setShowAddModal(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Plus size={16} /> Add Custom Action
+            <Plus size={16} /> {t("actions.addCustom", "Add Custom Action")}
           </Button>
         </div>
       </Card>
@@ -160,8 +162,8 @@ export default function ActionCenter() {
         <Card>
           <div className="tp-state" style={{ padding: 40 }}>
             <ClipboardList size={48} style={{ color: "var(--tp-neutral-300)" }} />
-            <div className="tp-state-title">No actions found</div>
-            <p>Select another filter or add a custom agronomic action to get started.</p>
+            <div className="tp-state-title">{t("actions.emptyTitle", "No actions found")}</div>
+            <p>{t("actions.emptySubtitle", "Select another filter or add a custom agronomic action to get started.")}</p>
           </div>
         </Card>
       ) : (
@@ -181,8 +183,10 @@ export default function ActionCenter() {
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
                       <strong style={{ fontSize: "0.95rem" }}>{act.field}</strong>
                       <Badge variant="neutral">{act.source || "System"}</Badge>
-                      <Badge variant={priorityVariant(act.priority)}>{act.priority} Priority</Badge>
-                      {isCompleted && <Badge variant="success">Completed</Badge>}
+                      <Badge variant={priorityVariant(act.priority)}>
+                        {act.priority === "High" ? t("farmHealth.urgent") : act.priority === "Medium" ? t("farmHealth.pending") : t("farmHealth.scheduled")} {t("actions.priority", "Priority")}
+                      </Badge>
+                      {isCompleted && <Badge variant="success">{t("actions.completed", "Completed")}</Badge>}
                     </div>
 
                     <p style={{ fontSize: "0.9rem", color: "var(--tp-neutral-800)", marginBottom: 8, fontWeight: 550 }}>
@@ -190,17 +194,17 @@ export default function ActionCenter() {
                     </p>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", color: "var(--tp-neutral-500)" }}>
-                      <Calendar size={14} /> Due Date: {act.dueDate}
+                      <Calendar size={14} /> {t("actions.dueDate", "Due Date")}: {act.dueDate}
                     </div>
                   </div>
 
                   {!isCompleted && (
                     <div className="tp-row tp-action-buttons" style={{ gap: 8 }}>
                       <Button variant="secondary" size="sm" onClick={() => handleDismissAction(act.id)}>
-                        Dismiss
+                        {t("buttons.dismiss", "Dismiss")}
                       </Button>
                       <Button variant="primary" size="sm" onClick={() => handleOpenFeedback(act)}>
-                        Mark Complete
+                        {t("buttons.markComplete", "Mark Complete")}
                       </Button>
                     </div>
                   )}
@@ -220,12 +224,12 @@ export default function ActionCenter() {
         }}>
           <Card style={{ width: "100%", maxWidth: 500, border: "3px solid #111827", boxShadow: "var(--tp-shadow-lg)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <CardTitle icon={Plus}>Add Custom Action</CardTitle>
+              <CardTitle icon={Plus}>{t("actions.addCustom", "Add Custom Action")}</CardTitle>
               <button onClick={() => setShowAddModal(false)} style={{ border: "none", background: "none", cursor: "pointer" }}><X size={20} /></button>
             </div>
 
             <div className="tp-stack" style={{ gap: 16 }}>
-              <Field label="Field Selector">
+              <Field label={t("actions.fieldSelector", "Field Selector")}>
                 <Select value={newAction.field} onChange={(e) => setNewAction({...newAction, field: e.target.value})}>
                   <option value="West Field">West Field (Cotton)</option>
                   <option value="North Field">North Field (Wheat)</option>
@@ -234,7 +238,7 @@ export default function ActionCenter() {
                 </Select>
               </Field>
 
-              <Field label="Recommendation / Action Description" required>
+              <Field label={t("actions.descriptionLabel", "Recommendation / Action Description")} required>
                 <textarea
                   className="tp-select"
                   rows={3}
@@ -246,7 +250,7 @@ export default function ActionCenter() {
               </Field>
 
               <div className="tp-grid tp-grid-2">
-                <Field label="Priority">
+                <Field label={t("actions.priority", "Priority")}>
                   <Select value={newAction.priority} onChange={(e) => setNewAction({...newAction, priority: e.target.value})}>
                     <option value="Low">Low</option>
                     <option value="Medium">Medium</option>
@@ -254,14 +258,14 @@ export default function ActionCenter() {
                   </Select>
                 </Field>
 
-                <Field label="Due Date">
+                <Field label={t("actions.dueDateLabel", "Due Date")}>
                   <Input type="date" value={newAction.dueDate} onChange={(e) => setNewAction({...newAction, dueDate: e.target.value})} />
                 </Field>
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
-                <Button variant="secondary" onClick={() => setShowAddModal(false)}>Cancel</Button>
-                <Button variant="primary" onClick={handleCreateAction} disabled={!newAction.recommendation.trim()}>Save Action</Button>
+                <Button variant="secondary" onClick={() => setShowAddModal(false)}>{t("buttons.cancel")}</Button>
+                <Button variant="primary" onClick={handleCreateAction} disabled={!newAction.recommendation.trim()}>{t("buttons.save")}</Button>
               </div>
             </div>
           </Card>
@@ -277,20 +281,20 @@ export default function ActionCenter() {
         }}>
           <Card style={{ width: "100%", maxWidth: 500, border: "3px solid #111827", boxShadow: "var(--tp-shadow-lg)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <CardTitle icon={Sparkles}>Decision Feedback Loop</CardTitle>
+              <CardTitle icon={Sparkles}>{t("actions.feedbackLoopTitle", "Decision Feedback Loop")}</CardTitle>
               <button onClick={() => setSelectedActionForFeedback(null)} style={{ border: "none", background: "none", cursor: "pointer" }}><X size={20} /></button>
             </div>
 
             <p style={{ fontSize: "0.84rem", color: "var(--tp-neutral-600)", marginBottom: 12 }}>
-              To complete this action, please record the physical outcomes. This provides auditability and helps Gemini improve future recommendations.
+              {t("actions.feedbackInstructions", "To complete this action, please record the physical outcomes. This provides auditability and helps Gemini improve future recommendations.")}
             </p>
 
             <div className="tp-stack" style={{ gap: 16 }}>
               <div style={{ padding: 10, background: "var(--tp-neutral-50)", border: "2px solid #111827", borderRadius: 8, fontSize: "0.84rem" }}>
-                <strong>Action Description:</strong> {selectedActionForFeedback.recommendation}
+                <strong>{t("actions.descriptionLabel")}:</strong> {selectedActionForFeedback.recommendation}
               </div>
 
-              <Field label="Observed Outcome / Action Report" required>
+              <Field label={t("actions.outcomeLabel", "Observed Outcome / Action Report")} required>
                 <textarea
                   className="tp-select"
                   rows={3}
@@ -301,7 +305,7 @@ export default function ActionCenter() {
                 />
               </Field>
 
-              <Field label="Subsequent Visual Observations">
+              <Field label={t("actions.observationsLabel", "Subsequent Visual Observations")}>
                 <input
                   className="tp-select"
                   type="text"
@@ -313,8 +317,8 @@ export default function ActionCenter() {
               </Field>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
-                <Button variant="secondary" onClick={() => setSelectedActionForFeedback(null)}>Cancel</Button>
-                <Button variant="primary" onClick={handleLogFeedback} disabled={!outcomeText.trim()}>Log Outcome & Close</Button>
+                <Button variant="secondary" onClick={() => setSelectedActionForFeedback(null)}>{t("buttons.cancel")}</Button>
+                <Button variant="primary" onClick={handleLogFeedback} disabled={!outcomeText.trim()}>{t("buttons.logOutcome", "Log Outcome & Close")}</Button>
               </div>
             </div>
           </Card>

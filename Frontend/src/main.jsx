@@ -34,37 +34,41 @@ function PrivateRoute() {
   return <Outlet />;
 }
 
+import { LanguageProvider } from "./hooks/useTranslation.jsx";
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route
-            element={
-              <PrivateRoute />
-            }
-          >
+      <LanguageProvider>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
             <Route
               element={
-                <AppLayout>
-                  <Outlet />
-                </AppLayout>
+                <PrivateRoute />
               }
             >
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/farm-health" element={<FarmHealth />} />
-              <Route path="/ai-scanner" element={<AIScanner />} />
-              <Route path="/carbon-simulator" element={<CarbonSimulator />} />
-              <Route path="/copilot" element={<AICopilot />} />
-              <Route path="/actions" element={<ActionCenter />} />
-              <Route path="/india-intelligence" element={<IndiaIntelligence />} />
+              <Route
+                element={
+                  <AppLayout>
+                    <Outlet />
+                  </AppLayout>
+                }
+              >
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/farm-health" element={<FarmHealth />} />
+                <Route path="/ai-scanner" element={<AIScanner />} />
+                <Route path="/carbon-simulator" element={<CarbonSimulator />} />
+                <Route path="/copilot" element={<AICopilot />} />
+                <Route path="/actions" element={<ActionCenter />} />
+                <Route path="/india-intelligence" element={<IndiaIntelligence />} />
+              </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </AuthProvider>
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   </StrictMode>
 );

@@ -6,9 +6,11 @@ import {
 } from "lucide-react";
 import logo from "../assets/logo.png";
 import "../styles/landing.css";
+import { useTranslation } from "../hooks/useTranslation.jsx";
 
 export default function Landing() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <div className="landing">
@@ -18,13 +20,13 @@ export default function Landing() {
             <img src={logo} alt="TerraPulse AI Logo" style={{ width: "160px", objectFit: "contain" }} />
           </Link>
           <div className="landing-nav-links">
-            <a href="#capabilities">Capabilities</a>
-            <a href="#how">How it works</a>
-            <a href="#preview">Product preview</a>
-            <Link to="/dashboard">Dashboard</Link>
+            <a href="#capabilities">{t("landing.nav.capabilities")}</a>
+            <a href="#how">{t("landing.nav.howItWorks")}</a>
+            <a href="#preview">{t("landing.nav.preview")}</a>
+            <Link to="/dashboard">{t("landing.nav.dashboard")}</Link>
           </div>
           <div className="landing-nav-cta">
-            <Link to="/dashboard" className="tp-btn tp-btn-primary">Launch app <ArrowRight size={16} /></Link>
+            <Link to="/dashboard" className="tp-btn tp-btn-primary">{t("landing.nav.launch")} <ArrowRight size={16} /></Link>
           </div>
           <button className="landing-nav-mobile tp-btn tp-btn-ghost" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">
             {mobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -32,11 +34,11 @@ export default function Landing() {
         </div>
         {mobileOpen && (
           <div className="landing-nav-mobile-menu" style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 24px 20px", borderBottom: "1px solid var(--tp-neutral-200)" }}>
-            <a href="#capabilities" onClick={() => setMobileOpen(false)}>Capabilities</a>
-            <a href="#how" onClick={() => setMobileOpen(false)}>How it works</a>
-            <a href="#preview" onClick={() => setMobileOpen(false)}>Product preview</a>
-            <Link to="/dashboard" onClick={() => setMobileOpen(false)}>Dashboard</Link>
-            <Link to="/ai-scanner" onClick={() => setMobileOpen(false)} className="tp-btn tp-btn-primary" style={{ justifyContent: "center" }}>Launch app</Link>
+            <a href="#capabilities" onClick={() => setMobileOpen(false)}>{t("landing.nav.capabilities")}</a>
+            <a href="#how" onClick={() => setMobileOpen(false)}>{t("landing.nav.howItWorks")}</a>
+            <a href="#preview" onClick={() => setMobileOpen(false)}>{t("landing.nav.preview")}</a>
+            <Link to="/dashboard" onClick={() => setMobileOpen(false)}>{t("landing.nav.dashboard")}</Link>
+            <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="tp-btn tp-btn-primary" style={{ justifyContent: "center" }}>{t("landing.nav.launch")}</Link>
           </div>
         )}
       </nav>
@@ -45,31 +47,30 @@ export default function Landing() {
       <section className="landing-hero">
         <div className="landing-hero-inner">
           <div>
-            <span className="landing-hero-tag"><Satellite size={14} /> Satellite + AI intelligence</span>
+            <span className="landing-hero-tag"><Satellite size={14} /> {t("landing.hero.tag")}</span>
             <h1>
-              Regenerative farm<br />
-              intelligence from <span className="accent">satellite to soil</span>
+              {t("landing.hero.titleLine1")}<br />
+              {t("landing.hero.titleLine2")} <span className="accent">{t("landing.hero.titleAccent")}</span>
             </h1>
             <p className="landing-hero-lead">
-              TerraPulse AI combines satellite monitoring, AI-assisted plant and soil analysis,
-              and carbon-credit simulation to help farms stay healthy, resilient, and regenerative.
+              {t("landing.hero.lead")}
             </p>
             <div className="landing-hero-ctas">
-              <Link to="/dashboard" className="tp-btn tp-btn-primary tp-btn-lg">Explore dashboard <ArrowRight size={18} /></Link>
-              <Link to="/ai-scanner" className="tp-btn tp-btn-secondary tp-btn-lg">Start analysis</Link>
+              <Link to="/dashboard" className="tp-btn tp-btn-primary tp-btn-lg">{t("landing.hero.explore")} <ArrowRight size={18} /></Link>
+              <Link to="/ai-scanner" className="tp-btn tp-btn-secondary tp-btn-lg">{t("landing.hero.start")}</Link>
             </div>
             <div className="landing-hero-stats">
               <div>
                 <div className="landing-hero-stat-val">124 ac</div>
-                <div className="landing-hero-stat-lbl">Monitored farmland</div>
+                <div className="landing-hero-stat-lbl">{t("landing.hero.farmland")}</div>
               </div>
               <div>
                 <div className="landing-hero-stat-val">4</div>
-                <div className="landing-hero-stat-lbl">Active fields</div>
+                <div className="landing-hero-stat-lbl">{t("landing.hero.activeFields")}</div>
               </div>
               <div>
                 <div className="landing-hero-stat-val">78</div>
-                <div className="landing-hero-stat-lbl">Farm health score</div>
+                <div className="landing-hero-stat-lbl">{t("landing.hero.healthScore")}</div>
               </div>
             </div>
           </div>
@@ -80,7 +81,7 @@ export default function Landing() {
             />
             <div className="landing-hero-badge">
               <span className="landing-hero-badge-dot" />
-              <span className="landing-hero-badge-text">NDVI live · Green Valley Farm</span>
+              <span className="landing-hero-badge-text">{t("landing.hero.ndviLive")}</span>
             </div>
           </div>
         </div>
@@ -90,33 +91,33 @@ export default function Landing() {
       <section className="landing-section" id="capabilities">
         <div className="landing-section-inner">
           <div className="landing-section-head">
-            <div className="eyebrow">Capabilities</div>
-            <h2>One platform, three intelligence layers</h2>
-            <p>From orbit-level monitoring to leaf-level diagnosis and carbon-aware planning.</p>
+            <div className="eyebrow">{t("landing.capabilities.eyebrow")}</div>
+            <h2>{t("landing.capabilities.title")}</h2>
+            <p>{t("landing.capabilities.sub")}</p>
           </div>
           <div className="cap-grid">
             <div className="cap-card">
               <div className="cap-icon"><MapIcon size={24} /></div>
-              <h3>Farm Health</h3>
-              <p>Satellite-powered field monitoring with NDVI, moisture stress, vegetation analytics, and interactive field maps.</p>
+              <h3>{t("landing.capabilities.healthTitle")}</h3>
+              <p>{t("landing.capabilities.healthDesc")}</p>
               <Link to="/farm-health" className="tp-row" style={{ marginTop: 16, fontWeight: 600, fontSize: "0.86rem" }}>
-                Open farm health <ArrowRight size={14} />
+                {t("landing.capabilities.healthLink")} <ArrowRight size={14} />
               </Link>
             </div>
             <div className="cap-card">
               <div className="cap-icon"><ScanLine size={24} /></div>
-              <h3>AI Scanner</h3>
-              <p>Upload a leaf or soil photo for AI-assisted disease and degradation analysis with regenerative recommendations.</p>
+              <h3>{t("landing.capabilities.scannerTitle")}</h3>
+              <p>{t("landing.capabilities.scannerDesc")}</p>
               <Link to="/ai-scanner" className="tp-row" style={{ marginTop: 16, fontWeight: 600, fontSize: "0.86rem" }}>
-                Start a scan <ArrowRight size={14} />
+                {t("landing.capabilities.scannerLink")} <ArrowRight size={14} />
               </Link>
             </div>
             <div className="cap-card">
               <div className="cap-icon"><Calculator size={24} /></div>
-              <h3>Carbon Intelligence</h3>
-              <p>Plan a 3-year crop rotation and simulate soil organic carbon recovery, yield resilience, and voluntary carbon credits.</p>
+              <h3>{t("landing.capabilities.carbonTitle")}</h3>
+              <p>{t("landing.capabilities.carbonDesc")}</p>
               <Link to="/carbon-simulator" className="tp-row" style={{ marginTop: 16, fontWeight: 600, fontSize: "0.86rem" }}>
-                Run simulator <ArrowRight size={14} />
+                {t("landing.capabilities.carbonLink")} <ArrowRight size={14} />
               </Link>
             </div>
           </div>
@@ -127,29 +128,29 @@ export default function Landing() {
       <section className="landing-section" id="how" style={{ background: "var(--tp-neutral-50)" }}>
         <div className="landing-section-inner">
           <div className="landing-section-head">
-            <div className="eyebrow">How it works</div>
-            <h2>A clear path from monitoring to restoration</h2>
+            <div className="eyebrow">{t("landing.how.eyebrow")}</div>
+            <h2>{t("landing.how.title")}</h2>
           </div>
           <div className="how-grid">
             <div className="how-step">
               <div className="how-step-num">1</div>
-              <h4>Monitor</h4>
-              <p>Satellite imagery tracks field NDVI, moisture, and vegetation health continuously.</p>
+              <h4>{t("landing.how.step1Title")}</h4>
+              <p>{t("landing.how.step1Desc")}</p>
             </div>
             <div className="how-step">
               <div className="how-step-num">2</div>
-              <h4>Analyze</h4>
-              <p>AI scans plant and soil images to detect disease, stress, and degradation early.</p>
+              <h4>{t("landing.how.step2Title")}</h4>
+              <p>{t("landing.how.step2Desc")}</p>
             </div>
             <div className="how-step">
               <div className="how-step-num">3</div>
-              <h4>Optimize</h4>
-              <p>Cover-crop and bio-fertilizer recommendations improve soil and yields sustainably.</p>
+              <h4>{t("landing.how.step3Title")}</h4>
+              <p>{t("landing.how.step3Desc")}</p>
             </div>
             <div className="how-step">
               <div className="how-step-num">4</div>
-              <h4>Restore</h4>
-              <p>Simulate carbon recovery and carbon-credit potential from regenerative rotations.</p>
+              <h4>{t("landing.how.step4Title")}</h4>
+              <p>{t("landing.how.step4Desc")}</p>
             </div>
           </div>
         </div>
@@ -159,28 +160,28 @@ export default function Landing() {
       <section className="landing-section" id="preview">
         <div className="landing-section-inner">
           <div className="landing-section-head">
-            <div className="eyebrow">Product preview</div>
-            <h2>Built like a real agricultural SaaS</h2>
-            <p>Every screen below is a live, working part of the application.</p>
+            <div className="eyebrow">{t("landing.preview.eyebrow")}</div>
+            <h2>{t("landing.preview.title")}</h2>
+            <p>{t("landing.preview.sub")}</p>
           </div>
           <div className="preview-grid">
             <Link to="/dashboard" className="preview-card">
               <div className="preview-card-top">
-                <h4>Dashboard</h4>
-                <p>Health score, monitored fields, NDVI, recent scans, carbon metrics.</p>
+                <h4>{t("landing.preview.dashboardTitle")}</h4>
+                <p>{t("landing.preview.dashboardDesc")}</p>
               </div>
               <div className="preview-card-body">
                 <div className="tp-row" style={{ gap: 16 }}>
-                  <div className="tp-stat"><span className="tp-stat-value" style={{ color: "var(--tp-green-600)" }}>78</span><span className="tp-stat-label">Health</span></div>
-                  <div className="tp-stat"><span className="tp-stat-value">0.57</span><span className="tp-stat-label">NDVI</span></div>
+                  <div className="tp-stat"><span className="tp-stat-value" style={{ color: "var(--tp-green-600)" }}>78</span><span className="tp-stat-label">{t("landing.preview.dashboardStatHealth")}</span></div>
+                  <div className="tp-stat"><span className="tp-stat-value">0.57</span><span className="tp-stat-label">{t("landing.preview.dashboardStatNdvi")}</span></div>
                   <Activity size={48} style={{ color: "var(--tp-green-300)" }} />
                 </div>
               </div>
             </Link>
             <Link to="/farm-health" className="preview-card">
               <div className="preview-card-top">
-                <h4>Farm map</h4>
-                <p>Interactive field boundaries with per-field health, NDVI, and risk.</p>
+                <h4>{t("landing.preview.mapTitle")}</h4>
+                <p>{t("landing.preview.mapDesc")}</p>
               </div>
               <div className="preview-card-body">
                 <MapIcon size={64} style={{ color: "var(--tp-green-400)" }} />
@@ -188,8 +189,8 @@ export default function Landing() {
             </Link>
             <Link to="/ai-scanner" className="preview-card">
               <div className="preview-card-top">
-                <h4>AI scanner</h4>
-                <p>Plant disease and soil degradation analysis with recommendations.</p>
+                <h4>{t("landing.preview.scannerTitle")}</h4>
+                <p>{t("landing.preview.scannerDesc")}</p>
               </div>
               <div className="preview-card-body">
                 <ScanLine size={64} style={{ color: "var(--tp-green-400)" }} />
@@ -197,8 +198,8 @@ export default function Landing() {
             </Link>
             <Link to="/carbon-simulator" className="preview-card">
               <div className="preview-card-top">
-                <h4>Carbon simulator</h4>
-                <p>3-year rotation planner with SOC, resilience, and credit projections.</p>
+                <h4>{t("landing.preview.carbonTitle")}</h4>
+                <p>{t("landing.preview.carbonDesc")}</p>
               </div>
               <div className="preview-card-body">
                 <TrendingUp size={64} style={{ color: "var(--tp-green-400)" }} />
@@ -212,15 +213,15 @@ export default function Landing() {
       <section className="landing-section">
         <div className="landing-section-inner">
           <div className="landing-cta">
-            <h2>Bring satellite intelligence to your farm today</h2>
-            <p>Explore the full TerraPulse AI dashboard, run an AI scan, and simulate your carbon recovery path — all in the live demo.</p>
-            <Link to="/dashboard" className="tp-btn tp-btn-primary tp-btn-lg">Launch TerraPulse AI <ArrowRight size={18} /></Link>
+            <h2>{t("landing.cta.title")}</h2>
+            <p>{t("landing.cta.desc")}</p>
+            <Link to="/dashboard" className="tp-btn tp-btn-primary tp-btn-lg">{t("landing.cta.btn")} <ArrowRight size={18} /></Link>
           </div>
         </div>
       </section>
 
       <footer className="landing-footer">
-        TerraPulse AI · Agricultural intelligence & regenerative farming · Demo build with simulated data
+        {t("landing.footer")}
       </footer>
     </div>
   );

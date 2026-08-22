@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAsync } from "../hooks/useAsync.js";
 import { dashboardService, userService } from "../services/api.js";
 import { useAuth } from "../hooks/useAuth.jsx";
+import { useTranslation } from "../hooks/useTranslation.jsx";
 import {
   Card, CardTitle, Badge, RiskBadge, HealthRing, Spinner, ErrorState,
   Skeleton, Button, Field, Input
@@ -25,6 +26,7 @@ const chartTooltipStyle = {
 };
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const overview = useAsync(() => dashboardService.getOverview(), []);
   const fields = useAsync(() => dashboardService.getFields(), []);
@@ -176,13 +178,13 @@ export default function Dashboard() {
   return (
     <div>
       <div className="tp-page-head">
-        <h1>Dashboard</h1>
-        <p>Real-time overview of {profile.data?.farmName || "Green Valley Farm"} health, scans, and carbon metrics.</p>
+        <h1>{t("dashboard.title")}</h1>
+        <p>{t("dashboard.subtitle")}</p>
       </div>
 
       {anyError && (
         <Card>
-          <ErrorState message="Some dashboard data failed to load." onRetry={() => { overview.refetch(); fields.refetch(); }} />
+          <ErrorState message={t("states.error")} onRetry={() => { overview.refetch(); fields.refetch(); }} />
         </Card>
       )}
 
@@ -195,7 +197,7 @@ export default function Dashboard() {
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, textAlign: "center" }}>
               <HealthRing value={overview.data.healthScore} size={90} />
               <div className="tp-stack" style={{ gap: 4, alignItems: "center" }}>
-                <span className="tp-stat-label" style={{ fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.03em" }}>Farm health</span>
+                <span className="tp-stat-label" style={{ fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.03em" }}>{t("dashboard.farmHealth")}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
                   <Badge variant={overview.data.status === "Healthy" ? "success" : "error"}>
                     {overview.data.status}
@@ -215,7 +217,7 @@ export default function Dashboard() {
                     gap: 4
                   }}
                 >
-                  {overview.data.healthTrend === "Decreasing" ? "▼" : "▲"} {overview.data.healthTrend || "Stable"} this month
+                  {overview.data.healthTrend === "Decreasing" ? "▼" : "▲"} {overview.data.healthTrend || "Stable"} {t("dashboard.healthTrend")}
                 </span>
               </div>
             </div>
@@ -229,15 +231,15 @@ export default function Dashboard() {
             <div style={{ display: "flex", flexDirection: "column", height: "100%", justifyContent: "space-between" }}>
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", width: "100%" }}>
-                  <CardTitle icon={Sprout}>Farm Ledger</CardTitle>
+                  <CardTitle icon={Sprout}>{t("dashboard.farmLedger")}</CardTitle>
                 </div>
                 <div style={{ marginTop: 4 }}>
                   <div style={{ fontSize: "1.05rem", fontWeight: 800 }}>{profile.data.farmName || "Green Valley Farm"}</div>
                   <div style={{ fontSize: "0.78rem", color: "var(--tp-neutral-500)", fontWeight: 600 }}>{profile.data.location || "Pune, Maharashtra"}</div>
                   <div style={{ fontSize: "0.75rem", marginTop: 4, display: "flex", gap: 6, color: "var(--tp-neutral-600)" }}>
-                    <span><strong>Acreage:</strong> {profile.data.acreage || 30} ac</span>
+                    <span><strong>{t("labels.acreage")}:</strong> {profile.data.acreage || 30} ac</span>
                     <span>•</span>
-                    <span><strong>User:</strong> {profile.data.displayName || "Farmer"}</span>
+                    <span><strong>{t("labels.user")}:</strong> {profile.data.displayName || "Farmer"}</span>
                   </div>
                 </div>
               </div>
@@ -247,22 +249,22 @@ export default function Dashboard() {
                 onClick={() => setIsEditOpen(true)}
                 style={{ marginTop: 10, width: "fit-content", padding: "4px 10px", height: 28, fontSize: "0.72rem" }}
               >
-                Edit Profile
+                {t("buttons.editProfile")}
               </Button>
             </div>
           ) : <Skeleton h={120} />}
         </Card>
 
-        <StatCard loading={fields.loading} label="Monitored fields" value={fields.data?.length} icon={Leaf} source="DEMO" />
-        <StatCard loading={ndvi.loading} label="Current NDVI" value={ndvi.data ? ndvi.data[ndvi.data.length - 1].ndvi.toFixed(2) : null} icon={Activity} source="LIVE" />
-        <StatCard loading={carbon.loading} label="Est. carbon credits" value={carbon.data?.estimatedCredits} suffix=" tCO₂e/yr" icon={Award} source="MODEL" />
+        <StatCard loading={fields.loading} label={t("dashboard.monitoredFields")} value={fields.data?.length} icon={Leaf} source="DEMO" />
+        <StatCard loading={ndvi.loading} label={t("dashboard.currentNdvi")} value={ndvi.data ? ndvi.data[ndvi.data.length - 1].ndvi.toFixed(2) : null} icon={Activity} source="LIVE" />
+        <StatCard loading={carbon.loading} label={t("dashboard.estCredits")} value={carbon.data?.estimatedCredits} suffix=" tCO₂e/yr" icon={Award} source="MODEL" />
       </div>
 
       {/* NDVI + Moisture */}
       <div className="tp-grid tp-grid-2" style={{ marginBottom: 20 }}>
         <Card>
           <div className="tp-row" style={{ justifyContent: "space-between" }}>
-            <CardTitle icon={Activity}>NDVI trend</CardTitle>
+            <CardTitle icon={Activity}>{t("dashboard.ndviTrend")}</CardTitle>
             <span className="tp-hint" style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--tp-green-600)" }}>LIVE (SATELLITE)</span>
           </div>
           {ndvi.loading ? <Skeleton h={200} /> : ndvi.data ? (
@@ -286,7 +288,7 @@ export default function Dashboard() {
 
         <Card>
           <div className="tp-row" style={{ justifyContent: "space-between" }}>
-            <CardTitle icon={Droplet}>Soil moisture trend</CardTitle>
+            <CardTitle icon={Droplet}>{t("dashboard.moistureTrend")}</CardTitle>
             <span className="tp-hint" style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--tp-green-600)" }}>LIVE (WEATHER)</span>
           </div>
           {moisture.loading ? <Skeleton h={200} /> : moisture.data ? (
@@ -308,7 +310,7 @@ export default function Dashboard() {
           ) : null}
           {moisture.data && (
             <div className="tp-row" style={{ marginTop: 8 }}>
-              <Badge variant="warning"><Droplets size={12} /> Stress in West Field</Badge>
+              <Badge variant="warning"><Droplets size={12} /> {t("dashboard.stressField", "Stress in West Field")}</Badge>
             </div>
           )}
         </Card>
@@ -318,7 +320,7 @@ export default function Dashboard() {
       <div className="tp-grid tp-grid-2" style={{ marginBottom: 20 }}>
         <Card pad={false}>
           <div style={{ padding: "var(--tp-space-5) var(--tp-space-5) 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <CardTitle icon={Leaf}>Monitored fields</CardTitle>
+            <CardTitle icon={Leaf}>{t("dashboard.monitoredFields")}</CardTitle>
             <span className="tp-hint" style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--tp-green-600)" }}>DEMO</span>
           </div>
           {fields.loading ? (
@@ -327,7 +329,7 @@ export default function Dashboard() {
             <div className="tp-table-wrapper">
               <table className="tp-table">
                 <thead>
-                  <tr><th>Field</th><th>Crop</th><th>NDVI</th><th>Moisture</th><th>Risk</th></tr>
+                  <tr><th>{t("labels.field")}</th><th>{t("labels.crop")}</th><th>NDVI</th><th>{t("labels.soilMoisture")}</th><th>{t("labels.status")}</th></tr>
                 </thead>
                 <tbody>
                   {fields.data.map((f) => (
@@ -345,14 +347,14 @@ export default function Dashboard() {
           ) : null}
           <div style={{ padding: 12 }}>
             <Link to="/farm-health" className="tp-row" style={{ fontWeight: 600, fontSize: "0.86rem", color: "var(--tp-green-600)" }}>
-              Open farm health <ArrowRight size={14} />
+              {t("farmHealth.title")} <ArrowRight size={14} />
             </Link>
           </div>
         </Card>
 
         <Card pad={false}>
           <div style={{ padding: "var(--tp-space-5) var(--tp-space-5) 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <CardTitle icon={ScanLine}>Recent AI scans</CardTitle>
+            <CardTitle icon={ScanLine}>{t("dashboard.recentScans")}</CardTitle>
             <span className="tp-hint" style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--tp-green-600)" }}>MODEL</span>
           </div>
           {scans.loading ? (
@@ -361,13 +363,13 @@ export default function Dashboard() {
             <div className="tp-table-wrapper">
               <table className="tp-table">
                 <thead>
-                  <tr><th>Date</th><th>Type</th><th>Result</th><th>Severity</th></tr>
+                  <tr><th>{t("dashboard.scanDate")}</th><th>{t("dashboard.scanType")}</th><th>{t("dashboard.scanResult")}</th><th>{t("dashboard.scanSeverity")}</th></tr>
                 </thead>
                 <tbody>
                   {scans.data.map((s) => (
                     <tr key={s.id}>
                       <td>{s.date}</td>
-                      <td><Badge variant={s.type === "Plant" ? "info" : "neutral"}>{s.type}</Badge></td>
+                      <td><Badge variant={s.type === "Plant" ? "info" : "neutral"}>{s.type === "Plant" ? t("scanner.tabPlant") : t("scanner.tabSoil")}</Badge></td>
                       <td>{s.result}</td>
                       <td><Badge variant={s.severity === "High" ? "error" : s.severity === "Medium" ? "warning" : s.severity === "Low" ? "info" : "success"}>{s.severity}</Badge></td>
                     </tr>
@@ -378,7 +380,7 @@ export default function Dashboard() {
           ) : null}
           <div style={{ padding: 12 }}>
             <Link to="/ai-scanner" className="tp-row" style={{ fontWeight: 600, fontSize: "0.86rem", color: "var(--tp-green-600)" }}>
-              New scan <ArrowRight size={14} />
+              {t("dashboard.newScan", "New Scan")} <ArrowRight size={14} />
             </Link>
           </div>
         </Card>
@@ -388,7 +390,7 @@ export default function Dashboard() {
       <div className="tp-grid tp-grid-2">
         <Card>
           <div className="tp-row" style={{ justifyContent: "space-between" }}>
-            <CardTitle icon={AlertTriangle}>Recommendations</CardTitle>
+            <CardTitle icon={AlertTriangle}>{t("dashboard.recsFeed")}</CardTitle>
             <span className="tp-hint" style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--tp-green-600)" }}>MODEL (GEMINI)</span>
           </div>
           {recs.loading ? (
@@ -415,7 +417,9 @@ export default function Dashboard() {
                       <div className="tp-grow">
                         <div className="tp-row" style={{ justifyContent: "space-between" }}>
                           <strong style={{ fontSize: "0.88rem" }}>{r.title}</strong>
-                          <Badge variant={priorityVariant(r.priority)}>{r.priority}</Badge>
+                          <Badge variant={priorityVariant(r.priority)}>
+                            {r.priority === "High" ? t("farmHealth.urgent") : r.priority === "Medium" ? t("farmHealth.pending") : t("farmHealth.scheduled")}
+                          </Badge>
                         </div>
                         <div className="tp-hint" style={{ marginTop: 2 }}>{r.detail}</div>
                       </div>
@@ -427,26 +431,26 @@ export default function Dashboard() {
               {selectedRec && (
                 <div style={{ marginTop: 16, padding: "12px 16px", border: "2.5px solid #111827", borderRadius: 10, background: "#ffffff", boxShadow: "var(--tp-shadow-xs)" }}>
                   <div style={{ fontWeight: 800, fontSize: "0.88rem", marginBottom: 6, color: "var(--tp-green-700)" }}>
-                    💡 Why This Recommendation? ({selectedRec.title})
+                    💡 {t("dashboard.whyRec", "Why This Recommendation?")} ({selectedRec.title})
                   </div>
                   <div style={{ fontSize: "0.82rem", lineHeight: 1.4, color: "var(--tp-neutral-700)" }}>
                     {selectedRec.title.includes("Irrigate") || selectedRec.title.includes("water") ? (
                       <>
-                        <strong>OBSERVED:</strong> Soil moisture dropped to 28% in West Field; temperature is 34°C. NDVI shows downward trend (-19.4%).<br />
-                        <strong>INFERRED:</strong> Active crop is experiencing dry stress, reducing growth density.<br />
-                        <strong>RECOMMENDED:</strong> Run a 12mm watering cycle. Alternate Wetting & Drying method is recommended for cotton roots.
+                        <strong>{t("labels.observed")}:</strong> {t("dashboard.recWaterObs")}<br />
+                        <strong>{t("labels.inferred")}:</strong> {t("dashboard.recWaterInf")}<br />
+                        <strong>{t("labels.recommended")}:</strong> {t("dashboard.recWaterRec")}
                       </>
                     ) : selectedRec.title.includes("pest") || selectedRec.title.includes("curl") || selectedRec.title.includes("Trap") ? (
                       <>
-                        <strong>OBSERVED:</strong> High temperature humidity index. Local community cooperative alert: Pink Bollworm outbreaks in nearby farms.<br />
-                        <strong>INFERRED:</strong> Threat level is high during flowering stage.<br />
-                        <strong>RECOMMENDED:</strong> Install 5 pheromone traps per acre and spray organic shield.
+                        <strong>{t("labels.observed")}:</strong> {t("dashboard.recPestObs")}<br />
+                        <strong>{t("labels.inferred")}:</strong> {t("dashboard.recPestInf")}<br />
+                        <strong>{t("labels.recommended")}:</strong> {t("dashboard.recPestRec")}
                       </>
                     ) : (
                       <>
-                        <strong>OBSERVED:</strong> Low soil organic matter, dry clay structures in West Field.<br />
-                        <strong>INFERRED:</strong> Poor water retention capacity is amplifying crop water stress.<br />
-                        <strong>RECOMMENDED:</strong> Apply compost and introduce sunn-hemp bio-fertilizers.
+                        <strong>{t("labels.observed")}:</strong> {t("dashboard.recSoilObs")}<br />
+                        <strong>{t("labels.inferred")}:</strong> {t("dashboard.recSoilInf")}<br />
+                        <strong>{t("labels.recommended")}:</strong> {t("dashboard.recSoilRec")}
                       </>
                     )}
                   </div>
@@ -456,10 +460,10 @@ export default function Dashboard() {
               {/* Action Center Preview */}
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: "2px dashed var(--tp-neutral-200)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span className="tp-hint" style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-                  <ClipboardCheck size={14} /> Action Center: 2 recommendations pending
+                  <ClipboardCheck size={14} /> {t("dashboard.actionsPending", "Action Center: 2 recommendations pending")}
                 </span>
                 <Link to="/actions" className="tp-btn tp-btn-sm tp-btn-primary" style={{ padding: "4px 10px", fontSize: "0.8rem", textDecoration: "none" }}>
-                  Execute Actions
+                  {t("dashboard.executeActions", "Execute Actions")}
                 </Link>
               </div>
             </>
@@ -468,7 +472,7 @@ export default function Dashboard() {
 
         <Card>
           <div className="tp-row" style={{ justifyContent: "space-between" }}>
-            <CardTitle icon={TrendingUp}>Carbon metrics (estimates)</CardTitle>
+            <CardTitle icon={TrendingUp}>{t("dashboard.carbonMetrics", "Carbon metrics (estimates)")}</CardTitle>
             <span className="tp-hint" style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--tp-green-600)" }}>MODEL</span>
           </div>
           {carbon.loading ? <Skeleton h={160} /> : carbon.data ? (
@@ -476,15 +480,15 @@ export default function Dashboard() {
               <div className="tp-grid tp-grid-3" style={{ marginBottom: 16 }}>
                 <div className="tp-stat">
                   <span className="tp-stat-value">{carbon.data.socCurrent}</span>
-                  <span className="tp-stat-label">SOC current (%)</span>
+                  <span className="tp-stat-label">{t("dashboard.socCurrent", "SOC current (%)")}</span>
                 </div>
                 <div className="tp-stat">
                   <span className="tp-stat-value" style={{ color: "var(--tp-green-600)" }}>{carbon.data.socProjected}</span>
-                  <span className="tp-stat-label">SOC projected (%)</span>
+                  <span className="tp-stat-label">{t("dashboard.socProjected", "SOC projected (%)")}</span>
                 </div>
                 <div className="tp-stat">
                   <span className="tp-stat-value">{carbon.data.sequestrationRate}</span>
-                  <span className="tp-stat-label">Seq. (tCO₂e/yr)</span>
+                  <span className="tp-stat-label">{t("dashboard.sequestrationRate", "Seq. (tCO₂e/yr)")}</span>
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={150}>
@@ -497,7 +501,7 @@ export default function Dashboard() {
                 </LineChart>
               </ResponsiveContainer>
               <Link to="/carbon-simulator" className="tp-row" style={{ marginTop: 12, fontWeight: 600, fontSize: "0.86rem", color: "var(--tp-green-600)" }}>
-                Open simulator <ArrowRight size={14} />
+                {t("dashboard.openSimulator", "Open simulator")} <ArrowRight size={14} />
               </Link>
             </>
           ) : null}
@@ -517,9 +521,9 @@ export default function Dashboard() {
         }}>
           <div style={{ width: "100%", maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
             <Card>
-              <CardTitle icon={Sprout}>Edit Farm Details</CardTitle>
+              <CardTitle icon={Sprout}>{t("profileModal.title")}</CardTitle>
               <form onSubmit={handleProfileSubmit} style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 12 }}>
-                <Field label="Farm Name" required>
+                <Field label={t("profileModal.farmName")} required>
                   <Input 
                     type="text" 
                     value={editFarmName} 
@@ -527,7 +531,7 @@ export default function Dashboard() {
                     required 
                   />
                 </Field>
-                <Field label="Location" required>
+                <Field label={t("profileModal.location")} required>
                   <div style={{ display: "flex", gap: 8 }}>
                     <Input 
                       type="text" 
@@ -549,11 +553,11 @@ export default function Dashboard() {
                       }}
                       style={{ padding: "8px 12px", height: 38, fontSize: "0.75rem", fontWeight: 700 }}
                     >
-                      Detect
+                      {t("buttons.detect", "Detect")}
                     </Button>
                   </div>
                 </Field>
-                <Field label="Acreage (Acres)" required>
+                <Field label={t("profileModal.acreage")} required>
                   <Input 
                     type="number" 
                     value={editAcreage} 
@@ -561,7 +565,7 @@ export default function Dashboard() {
                     required 
                   />
                 </Field>
-                <Field label="Farmer Display Name" required>
+                <Field label={t("labels.user")} required>
                   <Input 
                     type="text" 
                     value={editDisplayName} 
@@ -578,10 +582,10 @@ export default function Dashboard() {
 
                 <div className="tp-row" style={{ justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
                   <Button variant="secondary" type="button" onClick={() => setIsEditOpen(false)}>
-                    Cancel
+                    {t("buttons.cancel")}
                   </Button>
                   <Button variant="primary" type="submit" disabled={saveLoading}>
-                    {saveLoading ? "Saving..." : "Save Changes"}
+                    {saveLoading ? t("states.loading") : t("buttons.save")}
                   </Button>
                 </div>
               </form>
