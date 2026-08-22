@@ -26,8 +26,8 @@ const loadGoogleMapsScript = (apiKey, callback) => {
   const existingScript = document.getElementById("googleMapsScript");
   if (!existingScript) {
     const script = document.createElement("script");
-    // Explicitly load maps, drawing, geometry, and places libraries
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=drawing,geometry,places`;
+    const keyParam = apiKey ? `key=${apiKey}&` : "";
+    script.src = `https://maps.googleapis.com/maps/api/js?${keyParam}libraries=drawing,geometry,places`;
     script.id = "googleMapsScript";
     script.async = true;
     script.defer = true;
@@ -36,6 +36,7 @@ const loadGoogleMapsScript = (apiKey, callback) => {
     };
     script.onerror = () => {
       console.error("Google Maps API failed to load.");
+      if (callback) callback();
     };
     document.body.appendChild(script);
   } else {
@@ -153,13 +154,12 @@ export default function FarmHealth() {
   // Load Google Maps Script
   useEffect(() => {
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
-    if (apiKey) {
-      loadGoogleMapsScript(apiKey, () => {
-        setMapsLoaded(true);
-      });
-    } else {
-      console.warn("VITE_GOOGLE_MAPS_API_KEY is not defined in Frontend/.env. Drawing tools unavailable.");
+    if (!apiKey) {
+      console.warn("VITE_GOOGLE_MAPS_API_KEY is not defined in Frontend/.env. Loading map in development watermark mode.");
     }
+    loadGoogleMapsScript(apiKey, () => {
+      setMapsLoaded(true);
+    });
   }, []);
 
   // Initialize Map, Autocomplete, DrawingManager, and Predefined Overlays
@@ -611,11 +611,11 @@ export default function FarmHealth() {
 
         <Card>
           <CardTitle icon={Leaf}>{t("farmHealth.detailTitle", "Field Detail")}</CardTitle>
-          {geeMode === "live" && !customPolygonCoords && selectedId === null ? (
+          {geeMode === "live" && !advisoryData ? (
             <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", textAlign: "center", color: "var(--tp-neutral-500)" }}>
               <Satellite size={48} style={{ strokeWidth: 1.2, marginBottom: 12 }} />
-              <h4 style={{ color: "var(--tp-neutral-800)", marginBottom: 4 }}>No field selected</h4>
-              <p style={{ fontSize: "0.84rem" }}>Draw your field boundary on the map or select a predefined field shortcut to begin live Google Earth Engine analysis.</p>
+              <h4 style={{ color: "var(--tp-neutral-800)", marginBottom: 4 }}>No live data loaded</h4>
+              <p style={{ fontSize: "0.84rem" }}>Draw your field boundary on the map (or click a predefined field) and click <strong>Analyze Selected Field</strong> to pull live Sentinel-2 GEE telemetry & AI advisory.</p>
             </div>
           ) : !currentFieldTelemetry ? <Skeleton h={300} /> : (
             <div className="tp-stack" style={{ gap: 14 }}>
