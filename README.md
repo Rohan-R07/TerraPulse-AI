@@ -140,30 +140,30 @@ TerraPulse AI provides an intuitive, high-performance platform that unifies real
 
 ```text
 TerraPulse-AI/
-├── Backend/                    # Python Backend API & ML Engine (In Development)
-│   ├── main.py                 # Backend service entrypoint
+├── Backend/                    # Python Backend API & ML Engine
+│   ├── main.py                 # ASGI Uvicorn server entrypoint
 │   ├── requirements.txt        # Python package dependencies
-│   └── venv/                   # Local Python virtual environment
+│   ├── Dockerfile              # Containerization definition
+│   ├── app/                    # FastAPI application codebase
+│   │   ├── main.py             # FastAPI App instance and middlewares config
+│   │   ├── config.py           # Configuration schema and Pydantic settings loading
+│   │   ├── routers/            # Endpoint handlers (scanner, advisory, simulator, copilot, satellite, voice)
+│   │   ├── services/           # Business logic layer (Gemini, Speech synthesis, Carbon simulation, Risk engine)
+│   │   ├── schemas/            # Request and response Pydantic models
+│   │   └── utils/              # Helper utilities and audit loggers
+│   └── tests/                  # Pytest unit testing suite
 │
 ├── Frontend/                   # Vite + React Frontend Application
 │   ├── public/                 # Static public assets (favicons, icons)
 │   ├── src/
-│   │   ├── assets/             # Visual assets and SVGs
-│   │   ├── components/         # Reusable UI components (Layout, FarmMap, UI primitives)
-│   │   ├── data/               # Mock agronomic datasets & simulation parameters
-│   │   ├── hooks/              # Custom React state & async execution hooks
-│   │   ├── pages/              # Application views
-│   │   │   ├── Landing.jsx          # Public product landing page
-│   │   │   ├── Dashboard.jsx        # Agronomic telemetry dashboard
-│   │   │   ├── FarmHealth.jsx       # Satellite field health monitoring
-│   │   │   ├── AIScanner.jsx        # Leaf & Soil AI disease scanner
-│   │   │   └── CarbonSimulator.jsx  # Multi-year carbon & yield simulator
-│   │   ├── services/           # Decoupled service layer for API data fetching
-│   │   │   └── api.js          # Async service interfaces (Dashboard, Farm, Scanner, Simulator)
-│   │   ├── styles/             # Modular CSS design system
-│   │   │   ├── tokens.css      # HSL color palettes, typography, spacing tokens
-│   │   │   ├── app.css         # Main application layout styles
-│   │   │   └── landing.css     # Landing page custom animations & styles
+│   │   ├── assets/             # Visual assets and logo images
+│   │   ├── components/         # Reusable UI primitives, FarmMap, Layout sidebar/topbar
+│   │   ├── data/               # Mock datasets and static parameter definitions
+│   │   ├── hooks/              # Custom React state hooks (useAsync, useAuth, useTranslation)
+│   │   ├── locales/            # JSON translation dictionaries (en-IN, hi-IN, bn-IN, mr-IN, kn-IN)
+│   │   ├── pages/              # Primary views (Landing, Dashboard, FarmHealth, AIScanner, CarbonSimulator, AICopilot, ActionCenter, IndiaIntelligence)
+│   │   ├── services/           # Decoupled service layer for safeFetch API endpoints
+│   │   ├── styles/             # Modular CSS design system tokens and application layouts
 │   │   └── main.jsx            # Application entrypoint & React Router provider
 │   ├── eslint.config.js        # ESLint code hygiene rules
 │   ├── index.html              # HTML DOM container
