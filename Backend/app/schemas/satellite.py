@@ -43,3 +43,10 @@ class SatelliteHistoryResponse(BaseModel):
     fieldId: str
     ndviHistory: List[HistoryDataPoint]
     moistureHistory: List[HistoryDataPoint]
+
+class SatelliteAnalysisRequest(BaseModel):
+    field_id: str = "selected-field"
+    geometry: Optional[Dict[str, Any]] = None
+    date: Optional[str] = None
+    mode: str = "demo"
+    satellite: Optional[str] = "sentinel-2"

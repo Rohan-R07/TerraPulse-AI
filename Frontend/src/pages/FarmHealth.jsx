@@ -17,6 +17,65 @@ import { useTranslation } from "../hooks/useTranslation.jsx";
 
 const chartTooltipStyle = { borderRadius: 12, border: "1.5px solid var(--tp-neutral-200)", fontSize: "0.84rem", fontWeight: 600, boxShadow: "var(--tp-shadow-sm)", background: "#ffffff", padding: "8px 12px" };
 
+// Dynamic Google Maps JS API script loader
+const loadGoogleMapsScript = (apiKey, callback) => {
+  if (window.google && window.google.maps) {
+    callback();
+    return;
+  }
+  const existingScript = document.getElementById("googleMapsScript");
+  if (!existingScript) {
+    const script = document.createElement("script");
+    // Explicitly load maps, drawing, geometry, and places libraries
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=drawing,geometry,places`;
+    script.id = "googleMapsScript";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      if (callback) callback();
+    };
+    script.onerror = () => {
+      console.error("Google Maps API failed to load.");
+    };
+    document.body.appendChild(script);
+  } else {
+    const interval = setInterval(() => {
+      if (window.google && window.google.maps) {
+        clearInterval(interval);
+        callback();
+      }
+    }, 100);
+  }
+};
+
+// Geographic coordinates of pre-defined fields matching Backend/FIELD_GEOMETRIES
+const DEMO_FIELD_GEOMETRIES = {
+  north: [
+    { lat: 30.90, lng: 75.80 },
+    { lat: 30.90, lng: 75.81 },
+    { lat: 30.91, lng: 75.81 },
+    { lat: 30.91, lng: 75.80 }
+  ],
+  south: [
+    { lat: 18.52, lng: 73.85 },
+    { lat: 18.52, lng: 73.86 },
+    { lat: 18.53, lng: 73.86 },
+    { lat: 18.53, lng: 73.85 }
+  ],
+  east: [
+    { lat: 18.52, lng: 73.88 },
+    { lat: 18.52, lng: 73.89 },
+    { lat: 18.53, lng: 73.89 },
+    { lat: 18.53, lng: 73.88 }
+  ],
+  west: [
+    { lat: 18.52, lng: 73.82 },
+    { lat: 18.52, lng: 73.83 },
+    { lat: 18.53, lng: 73.83 },
+    { lat: 18.53, lng: 73.82 }
+  ]
+};
+
 export default function FarmHealth() {
   const fieldsQ = useAsync(() => farmService.getFields(), []);
   const coverQ = useAsync(() => farmService.getCoverCrops(), []);
@@ -34,6 +93,17 @@ export default function FarmHealth() {
   const [geeLoading, setGeeLoading] = useState(false);
   const [geeData, setGeeData] = useState(null);
 
+  // Custom Field Drawing and Map objects state
+  const [mapsLoaded, setMapsLoaded] = useState(false);
+  const [mapObj, setMapObj] = useState(null);
+  const [drawingManagerObj, setDrawingManagerObj] = useState(null);
+  const [currentPolygonObj, setCurrentPolygonObj] = useState(null);
+  const [customPolygonCoords, setCustomPolygonCoords] = useState(null); // List of [lng, lat] coordinates
+  const [polygonArea, setPolygonArea] = useState(0); // in square meters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [locationError, setLocationError] = useState(null);
+  const [demoOverlays, setDemoOverlays] = useState([]);
+
   // Advisory states
   const [advisoryLoading, setAdvisoryLoading] = useState(false);
   const [advisoryData, setAdvisoryData] = useState(null);
@@ -41,25 +111,30 @@ export default function FarmHealth() {
 
   const selected = fieldsQ.data?.find((f) => f.id === selectedId) || fieldsQ.data?.[0];
 
-  // Authoritative dynamic telemetry object for the selected field
+  // Authoritative dynamic telemetry object for the selected custom or predefined field
   const currentFieldTelemetry = useMemo(() => {
-    if (!selected) return null;
+    if (!selected && !customPolygonCoords) return null;
     
     const isLive = geeMode === "live" && geeData && geeData.image_available !== false;
-    const ndvi = isLive ? geeData.ndvi : selected.ndvi;
-    const previousNdvi = isLive ? (geeData.prevNdvi || selected.ndvi) : selected.ndvi;
+    const isCustom = geeMode === "live" && customPolygonCoords !== null;
+    
+    const ndvi = isLive ? geeData.ndvi : (selected?.ndvi || 0.60);
+    const previousNdvi = isLive ? (geeData.prevNdvi || selected?.ndvi || 0.60) : (selected?.ndvi || 0.60);
     const ndviChange = previousNdvi > 0 ? +(((ndvi - previousNdvi) / previousNdvi) * 100).toFixed(1) : 0;
     
     const ndviStatus = ndvi >= 0.7 ? "Healthy" : ndvi >= 0.5 ? "Moderate stress" : "Vegetation stress detected";
     
+    const fieldName = isCustom ? "Selected Field" : (selected?.name || "Selected Field");
+    const fieldArea = isCustom ? +(polygonArea * 0.000247105).toFixed(2) : (selected?.acres || 0);
+    
     return {
-      fieldId: selected.id,
-      fieldName: selected.name,
-      crop: selected.crop,
+      fieldId: isCustom ? "custom-field" : (selected?.id || "custom-field"),
+      fieldName: fieldName,
+      crop: selected?.crop || "Wheat",
       ndvi: ndvi,
       previousNdvi: previousNdvi,
       ndviChange: ndviChange,
-      soilMoisture: selected.moisture,
+      soilMoisture: selected?.moisture || 35,
       temperature: 34,
       rainfall: 8,
       humidity: 35,
@@ -68,19 +143,253 @@ export default function FarmHealth() {
       actualImageDate: isLive ? (geeData.actual_image_date || geeData.acquisitionDate) : date,
       cloudPercentage: isLive ? geeData.cloudCover : 1.2,
       dataSource: isLive ? "LIVE — Google Earth Engine" : "DEMO — Sentinel-2 Sample Dataset",
-      status: isLive ? (geeData.status || ndviStatus) : (selected.stress || ndviStatus)
+      status: isLive ? (geeData.status || ndviStatus) : (selected?.stress || ndviStatus),
+      geometry: isCustom ? { type: "Polygon", coordinates: [customPolygonCoords] } : null,
+      area: fieldArea,
+      validPixelCount: isLive ? (geeData.valid_pixel_count || 45) : 45
     };
-  }, [selected, geeMode, geeData, date]);
+  }, [selected, geeMode, geeData, date, customPolygonCoords, polygonArea]);
 
-  // Fetch GEE data when field, date or mode changes with race condition protection
+  // Load Google Maps Script
   useEffect(() => {
-    if (!selectedId) return;
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+    if (apiKey) {
+      loadGoogleMapsScript(apiKey, () => {
+        setMapsLoaded(true);
+      });
+    } else {
+      console.warn("VITE_GOOGLE_MAPS_API_KEY is not defined in Frontend/.env. Drawing tools unavailable.");
+    }
+  }, []);
+
+  // Initialize Map, Autocomplete, DrawingManager, and Predefined Overlays
+  useEffect(() => {
+    if (!mapsLoaded) return;
+    const mapContainer = document.getElementById("tp-google-map");
+    if (!mapContainer) return;
+
+    // Default Ludhiana demonstration agricultural region center
+    const defaultCenter = { lat: 30.90, lng: 75.80 };
+    
+    const map = new google.maps.Map(mapContainer, {
+      center: defaultCenter,
+      zoom: 14,
+      mapTypeId: google.maps.MapTypeId.SATELLITE,
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: false
+    });
+    setMapObj(map);
+
+    // Set up location search via Places Autocomplete if library is enabled
+    try {
+      const searchInput = document.getElementById("tp-map-search-input");
+      if (searchInput && google.maps.places) {
+        const autocomplete = new google.maps.places.Autocomplete(searchInput);
+        autocomplete.bindTo("bounds", map);
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          if (place.geometry && place.geometry.location) {
+            map.setCenter(place.geometry.location);
+            map.setZoom(14);
+            // Clear predefined selections on search
+            setSelectedId(null);
+            handleClearPolygon();
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Places Autocomplete library failed to load:", e);
+    }
+
+    // Initialize DrawingManager
+    let drawingManager;
+    try {
+      drawingManager = new google.maps.drawing.DrawingManager({
+        drawingMode: null,
+        drawingControl: false,
+        polygonOptions: {
+          fillColor: "rgba(22, 163, 74, 0.4)",
+          fillOpacity: 0.4,
+          strokeColor: "#16a34a",
+          strokeWeight: 3,
+          clickable: true,
+          editable: true,
+          zIndex: 1
+        }
+      });
+      drawingManager.setMap(map);
+      setDrawingManagerObj(drawingManager);
+    } catch (e) {
+      console.warn("Google Maps DrawingManager failed to initialize:", e);
+    }
+
+    // Listen for custom polygon drawing completion
+    if (drawingManager) {
+      google.maps.event.addListener(drawingManager, "polygoncomplete", (polygon) => {
+        drawingManager.setDrawingMode(null);
+        setCurrentPolygonObj(polygon);
+        
+        // Extract and validate coordinates
+        updatePolygonData(polygon);
+        
+        // Listen to polygon edits
+        const path = polygon.getPath();
+        google.maps.event.addListener(path, "set_at", () => updatePolygonData(polygon));
+        google.maps.event.addListener(path, "insert_at", () => updatePolygonData(polygon));
+        google.maps.event.addListener(path, "remove_at", () => updatePolygonData(polygon));
+      });
+    }
+
+    // Create Predefined/Demo Field Clickable Overlays
+    const overlays = [];
+    Object.entries(DEMO_FIELD_GEOMETRIES).forEach(([fieldId, path]) => {
+      const fieldData = fieldsQ.data?.find(f => f.id === fieldId);
+      const health = fieldData ? fieldData.health : 75;
+      const color = health >= 75 ? "rgba(22, 163, 74, 0.6)" : health >= 55 ? "rgba(217, 119, 6, 0.6)" : "rgba(220, 38, 38, 0.6)";
+      
+      const poly = new google.maps.Polygon({
+        paths: path,
+        fillColor: color,
+        fillOpacity: 0.4,
+        strokeColor: "#111827",
+        strokeWeight: 2,
+        map: map
+      });
+
+      poly.addListener("click", () => {
+        setSelectedId(fieldId);
+        // Clear custom coordinates since predefined field takes priority
+        setCustomPolygonCoords(null);
+        setPolygonArea(0);
+        if (currentPolygonObj) {
+          currentPolygonObj.setMap(null);
+          setCurrentPolygonObj(null);
+        }
+      });
+
+      overlays.push({ id: fieldId, polygon: poly });
+    });
+    setDemoOverlays(overlays);
+
+    return () => {
+      overlays.forEach(o => o.polygon.setMap(null));
+    };
+  }, [mapsLoaded, fieldsQ.data]);
+
+  // Extract coordinates, validate geometry, and calculate area in acres
+  const updatePolygonData = (polygon) => {
+    const path = polygon.getPath();
+    const vertices = [];
+    let isMalformed = false;
+    
+    for (let i = 0; i < path.getLength(); i++) {
+      const lat = path.getAt(i).lat();
+      const lng = path.getAt(i).lng();
+      
+      if (lat === null || lat === undefined || isNaN(lat) || lng === null || lng === undefined || isNaN(lng)) {
+        isMalformed = true;
+      }
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        isMalformed = true;
+      }
+      vertices.push([lng, lat]);
+    }
+    
+    if (vertices.length < 3 || isMalformed) {
+      setLocationError("Please draw a valid field boundary with at least 3 vertices.");
+      setCustomPolygonCoords(null);
+      setPolygonArea(0);
+      return;
+    }
+    
+    const closedVertices = [...vertices];
+    if (
+      closedVertices[0][0] !== closedVertices[closedVertices.length - 1][0] || 
+      closedVertices[0][1] !== closedVertices[closedVertices.length - 1][1]
+    ) {
+      closedVertices.push(closedVertices[0]);
+    }
+    
+    setLocationError(null);
+    setSelectedId(null); // Clear predefined ID since custom geometry is active
+    setCustomPolygonCoords(closedVertices);
+    
+    try {
+      const areaM2 = google.maps.geometry.spherical.computeArea(path);
+      setPolygonArea(areaM2);
+    } catch (e) {
+      console.warn("Failed to compute spherical area:", e);
+    }
+  };
+
+  const handleClearPolygon = () => {
+    if (currentPolygonObj) {
+      currentPolygonObj.setMap(null);
+      setCurrentPolygonObj(null);
+    }
+    setCustomPolygonCoords(null);
+    setPolygonArea(0);
+    if (drawingManagerObj) {
+      drawingManagerObj.setDrawingMode(null);
+    }
+  };
+
+  const handleMyLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLoc = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setLocationError(null);
+        setSelectedId(null);
+        handleClearPolygon();
+        if (mapObj) {
+          mapObj.setCenter(userLoc);
+          mapObj.setZoom(15);
+          
+          new google.maps.Marker({
+            position: userLoc,
+            map: mapObj,
+            title: "Your location",
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 7,
+              fillColor: "#3b82f6",
+              fillOpacity: 1,
+              strokeColor: "#ffffff",
+              strokeWeight: 2
+            }
+          });
+        }
+      },
+      (error) => {
+        console.warn("Location permission denied:", error);
+        setLocationError("Location access was not granted. Centered on demo region.");
+      }
+    );
+  };
+
+  // Fetch GEE data when field, date, mode or custom polygon changes with race condition protection
+  useEffect(() => {
+    // We need either a predefined field or custom geometry to run
+    if (!selectedId && !customPolygonCoords) return;
     
     let active = true;
     setGeeLoading(true);
-    setGeeData(null); // Invalidate telemetry immediately on selection change
+    setGeeData(null);
     
-    satelliteService.getSatelliteData(selectedId, geeMode === "live", date)
+    const targetFieldId = selectedId || "selected-field";
+    const customGeometry = (geeMode === "live" && customPolygonCoords) 
+      ? { type: "Polygon", coordinates: [customPolygonCoords] } 
+      : null;
+      
+    satelliteService.getSatelliteData(targetFieldId, geeMode === "live", date, customGeometry)
       .then(res => {
         if (active) {
           setGeeData(res);
@@ -96,13 +405,13 @@ export default function FarmHealth() {
     return () => {
       active = false;
     };
-  }, [selectedId, geeMode, date]);
+  }, [selectedId, geeMode, date, customPolygonCoords]);
 
   // Invalidate stale advisories immediately on any configuration change
   useEffect(() => {
     setAdvisoryData(null);
     setActionLogged(false);
-  }, [selectedId, geeMode, date, source]);
+  }, [selectedId, geeMode, date, source, customPolygonCoords]);
 
   // Auto-reset source to Sentinel-2 if GEE Live mode is toggled with unsupported options selected
   useEffect(() => {
@@ -112,7 +421,7 @@ export default function FarmHealth() {
   }, [geeMode, source]);
 
   const handleGenerateAdvisory = async () => {
-    if (!selected || !currentFieldTelemetry) return;
+    if (!currentFieldTelemetry) return;
     setAdvisoryLoading(true);
     setActionLogged(false);
     try {
@@ -135,7 +444,7 @@ export default function FarmHealth() {
         rainfall: currentFieldTelemetry.rainfall,
         crop: currentFieldTelemetry.crop,
         crop_stage: "Flowering",
-        soil_type: selected.soilType,
+        soil_type: selected?.soilType || "Clay",
         diseases: currentFieldTelemetry.ndvi < 0.5 ? "Water stress" : "None"
       });
 
@@ -168,7 +477,7 @@ export default function FarmHealth() {
   };
 
   const handleLogAction = async () => {
-    if (!selected || !advisoryData || !currentFieldTelemetry) return;
+    if (!advisoryData || !currentFieldTelemetry) return;
     try {
       await actionService.createAction({
         field: currentFieldTelemetry.fieldName,
@@ -202,27 +511,120 @@ export default function FarmHealth() {
       {/* Map + Field detail */}
       <div className="tp-farm-health-grid">
         <Card pad={false}>
-          <div style={{ padding: "var(--tp-space-5) var(--tp-space-5) var(--tp-space-3)" }}>
+          <div style={{ padding: "var(--tp-space-5) var(--tp-space-5) var(--tp-space-2)" }}>
             <CardTitle icon={MapIcon}>{t("farmHealth.mapTitle", "Interactive field map")}</CardTitle>
-            <p className="tp-card-sub">{t("farmHealth.mapSubtitle", "Click a field to inspect its condition. Colors reflect health score.")}</p>
+            <p className="tp-card-sub">Draw/select a field to analyze its condition. Clicking demo overlays selects shortcuts.</p>
           </div>
-          {fieldsQ.loading ? (
-            <div style={{ padding: 20, display: "flex", justifyContent: "center" }}><Spinner /></div>
-          ) : fieldsQ.data ? (
-            <FarmMap fields={fieldsQ.data} selectedId={selectedId} onSelect={setSelectedId} height={440} />
-          ) : <Skeleton h={440} />}
+          
+          {/* Location search & My Location button */}
+          <div style={{ padding: "0 20px 10px", display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              id="tp-map-search-input"
+              type="text"
+              placeholder="Search for a farm, village, city..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="tp-select"
+              style={{ flex: 1, margin: 0, padding: "8px 12px", border: "2px solid #111827", borderRadius: 6 }}
+            />
+            <Button 
+              variant="secondary" 
+              onClick={handleMyLocation} 
+              style={{ display: "flex", alignItems: "center", gap: 4, height: 42, padding: "8px 12px" }}
+            >
+              📍 {t("farmHealth.myLocation", "My Location")}
+            </Button>
+          </div>
+
+          <div style={{ position: "relative" }}>
+            {!mapsLoaded ? (
+              <div style={{ height: 440, background: "var(--tp-neutral-100)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2.5px solid #111827", borderRadius: 8, margin: "0 20px 16px" }}>
+                <Spinner />
+                <span style={{ fontSize: "0.84rem", marginTop: 8, color: "var(--tp-neutral-500)" }}>
+                  Loading Google Maps JavaScript API...
+                </span>
+              </div>
+            ) : (
+              <div 
+                id="tp-google-map" 
+                style={{ height: 440, margin: "0 20px 16px", borderRadius: 8, border: "2.5px solid #111827" }} 
+              />
+            )}
+            
+            {/* Demo Agricultural Area Label */}
+            <div style={{ position: "absolute", top: 12, right: 32, background: "rgba(17, 24, 39, 0.85)", color: "#ffffff", padding: "4px 8px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 700, pointerEvents: "none", zIndex: 10 }}>
+              🌾 Demo agricultural region (Ludhiana, Punjab)
+            </div>
+          </div>
+
+          {/* Drawing and clear controls */}
+          <div style={{ padding: "0 20px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  if (drawingManagerObj) {
+                    drawingManagerObj.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+                  }
+                }}
+                disabled={!mapsLoaded}
+              >
+                ✏️ Draw Field
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleClearPolygon}
+                disabled={!customPolygonCoords}
+              >
+                🗑 Clear
+              </Button>
+            </div>
+            
+            <div style={{ fontSize: "0.86rem", fontWeight: 700 }}>
+              {customPolygonCoords ? (
+                <span>Selected area: <strong>{+(polygonArea * 0.000247105).toFixed(2)} acres</strong></span>
+              ) : (
+                <span style={{ color: "var(--tp-neutral-500)" }}>Draw your field boundary on the map</span>
+              )}
+            </div>
+          </div>
+
+          {/* Analyze custom drawn field button */}
+          <div style={{ padding: "0 20px 20px" }}>
+            <Button
+              variant="primary"
+              onClick={handleGenerateAdvisory}
+              disabled={advisoryLoading || (geeMode === "live" && !customPolygonCoords && selectedId === null)}
+              style={{ width: "100%", fontWeight: 700 }}
+            >
+              {advisoryLoading ? <Spinner size={16} /> : "Analyze Selected Field"}
+            </Button>
+          </div>
+          
+          {/* Location error message */}
+          {locationError && (
+            <div style={{ margin: "0 20px 20px", padding: "8px 12px", background: "var(--tp-warning-50)", border: "1.5px solid var(--tp-warning-600)", borderRadius: 6, color: "var(--tp-warning-800)", fontSize: "0.82rem", fontWeight: 700 }}>
+              {locationError}
+            </div>
+          )}
         </Card>
 
         <Card>
           <CardTitle icon={Leaf}>{t("farmHealth.detailTitle", "Field Detail")}</CardTitle>
-          {!selected ? <Skeleton h={300} /> : (
+          {geeMode === "live" && !customPolygonCoords && selectedId === null ? (
+            <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", textAlign: "center", color: "var(--tp-neutral-500)" }}>
+              <Satellite size={48} style={{ strokeWidth: 1.2, marginBottom: 12 }} />
+              <h4 style={{ color: "var(--tp-neutral-800)", marginBottom: 4 }}>No field selected</h4>
+              <p style={{ fontSize: "0.84rem" }}>Draw your field boundary on the map or select a predefined field shortcut to begin live Google Earth Engine analysis.</p>
+            </div>
+          ) : !currentFieldTelemetry ? <Skeleton h={300} /> : (
             <div className="tp-stack" style={{ gap: 14 }}>
               <div className="tp-row" style={{ justifyContent: "space-between" }}>
                 <div>
-                  <h3 style={{ marginBottom: 2 }}>{selected.name}</h3>
-                  <span className="tp-hint">{selected.acres} ac · {selected.soilType}</span>
+                  <h3 style={{ marginBottom: 2 }}>{currentFieldTelemetry.fieldName}</h3>
+                  <span className="tp-hint">{currentFieldTelemetry.area} ac · {selected?.soilType || "Clay"}</span>
                 </div>
-                <HealthRing value={selected.health} size={92} />
+                <HealthRing value={selected?.health || 75} size={92} />
               </div>
               <div className="tp-grid tp-grid-3">
                 <Metric label={t("labels.crop")} value={currentFieldTelemetry.crop} />
@@ -235,7 +637,7 @@ export default function FarmHealth() {
                   } 
                 />
                 <Metric label={t("labels.soilMoisture")} value={`${currentFieldTelemetry.soilMoisture}%`} />
-                <Metric label={t("labels.vegetation", "Vegetation")} value={selected.vegetation} />
+                <Metric label={t("labels.vegetation", "Vegetation")} value={selected?.vegetation || "Healthy"} />
                 <Metric 
                   label={t("labels.stress", "Stress")} 
                   value={
@@ -244,32 +646,27 @@ export default function FarmHealth() {
                       : currentFieldTelemetry.status
                   } 
                 />
-                <div className="tp-stat"><span className="tp-stat-label">{t("labels.status")}</span><div style={{ marginTop: 4 }}><RiskBadge risk={selected.risk} /></div></div>
+                <div className="tp-stat"><span className="tp-stat-label">{t("labels.status")}</span><div style={{ marginTop: 4 }}><RiskBadge risk={selected?.risk || "Low"} /></div></div>
               </div>
+              
+              {/* Mixed Land Cover / Urban Warning */}
+              {geeMode === "live" && currentFieldTelemetry.ndvi < 0.35 && (
+                <div style={{ padding: "8px 12px", background: "var(--tp-warning-50)", border: "1.5px solid var(--tp-warning-600)", borderRadius: 6, color: "var(--tp-warning-800)", fontSize: "0.8rem", fontWeight: 700 }}>
+                  ⚠️ Selected area may contain non-crop land cover. Field verification is recommended.
+                </div>
+              )}
+
               <div>
                 <strong style={{ fontSize: "0.86rem" }}>{t("farmHealth.standardRecs", "Standard Recommendations")}</strong>
                 <ul style={{ margin: "8px 0 0", paddingLeft: 18, color: "var(--tp-neutral-600)", fontSize: "0.86rem", display: "flex", flexDirection: "column", gap: 4 }}>
-                  {selected.recommendations.map((r, i) => <li key={i}>{r}</li>)}
+                  {selected?.recommendations?.map((r, i) => <li key={i}>{r}</li>) || (
+                    <>
+                      <li>Increase irrigation frequency</li>
+                      <li>Inspect for potassium deficiency</li>
+                      <li>Introduce cover crop after harvest</li>
+                    </>
+                  )}
                 </ul>
-              </div>
-
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "2px dashed var(--tp-neutral-200)" }}>
-                {geeLoading ? (
-                  <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}><Spinner size={20} /></div>
-                ) : geeMode === "live" && (!geeData || geeData.image_available === false) ? (
-                  <div style={{ padding: "8px 12px", background: "var(--tp-error-50)", border: "2.5px solid var(--tp-error-600)", borderRadius: 8, color: "var(--tp-error-800)", fontSize: "0.82rem", fontWeight: 700, textAlign: "center" }}>
-                    Live satellite data is currently unavailable.
-                  </div>
-                ) : (
-                  <Button
-                    variant="primary"
-                    onClick={handleGenerateAdvisory}
-                    disabled={advisoryLoading}
-                    style={{ width: "100%" }}
-                  >
-                    {advisoryLoading ? <Spinner size={16} /> : t("buttons.runAdvisory", "Run AI Advisory & Risk Engine")}
-                  </Button>
-                )}
               </div>
             </div>
           )}

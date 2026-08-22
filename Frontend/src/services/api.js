@@ -235,7 +235,38 @@ export const actionService = {
 };
 
 export const satelliteService = {
-  async getSatelliteData(fieldId, isLive, date) {
+  async getSatelliteData(fieldId, isLive, date, geometry = null) {
+    if (geometry) {
+      return safeFetch("/satellite/analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          field_id: fieldId,
+          geometry: geometry,
+          date: date,
+          mode: isLive ? "live" : "demo",
+          satellite: "sentinel-2"
+        })
+      }, () => {
+        return {
+          fieldId,
+          dataSource: isLive ? "LIVE — Google Earth Engine (Sentinel-2)" : "DEMO — Sentinel-2 Sample Dataset",
+          isLive,
+          ndvi: 0.65,
+          prevNdvi: 0.70,
+          acquisitionDate: date || (isLive ? "2026-08-18" : "2026-08-10"),
+          cloudCover: 1.2,
+          resolution: "10m",
+          status: "Healthy",
+          requested_date: date || "2026-08-10",
+          actual_image_date: date || (isLive ? "2026-08-18" : "2026-08-10"),
+          image_available: true,
+          pixel_count: 50,
+          valid_pixel_count: 50
+        };
+      });
+    }
+
     let url = `/satellite/${fieldId}?mode=${isLive ? "live" : "demo"}`;
     if (date) {
       url += `&date=${date}`;
@@ -262,7 +293,9 @@ export const satelliteService = {
         status: statusMap[fieldId] || "Healthy",
         requested_date: date || "2026-08-10",
         actual_image_date: date || (isLive ? "2026-08-18" : "2026-08-10"),
-        image_available: true
+        image_available: true,
+        pixel_count: 45,
+        valid_pixel_count: 45
       };
     });
   },

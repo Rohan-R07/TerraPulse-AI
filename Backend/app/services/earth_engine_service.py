@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.config import settings
 
 logger = logging.getLogger("TerraPulseBackend.EarthEngine")
@@ -68,7 +68,7 @@ class EarthEngineService:
             return 0.63, 0.67, "Healthy"
 
     @classmethod
-    def get_satellite_data(cls, field_id: str, mode: str = "demo", date_str: str = None) -> Dict[str, Any]:
+    def get_satellite_data(cls, field_id: str, mode: str = "demo", date_str: str = None, geometry_dict: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         # Clean the field ID to standard format
         clean_field_id = "north"
         for fid in ["north", "south", "east", "west"]:
@@ -109,11 +109,18 @@ class EarthEngineService:
 
         try:
             import ee
-            if clean_field_id not in FIELD_GEOMETRIES:
-                raise ValueError(f"Unknown field geometry for ID: {field_id}")
-            
-            geo_info = FIELD_GEOMETRIES[clean_field_id]
-            geometry = ee.Geometry.Polygon(geo_info["coordinates"])
+            if geometry_dict:
+                geom_type = geometry_dict.get("type", "Polygon")
+                coords = geometry_dict.get("coordinates")
+                if not coords or geom_type != "Polygon":
+                    raise ValueError("Invalid polygon coordinates")
+                geometry = ee.Geometry.Polygon(coords)
+            else:
+                if clean_field_id not in FIELD_GEOMETRIES:
+                    raise ValueError(f"Unknown field geometry for ID: {field_id}")
+                
+                geo_info = FIELD_GEOMETRIES[clean_field_id]
+                geometry = ee.Geometry.Polygon(geo_info["coordinates"])
 
             if not date_str:
                 date_str = "2026-08-18"

@@ -3,7 +3,7 @@ import json
 import logging
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any, List, Optional
-from app.schemas.satellite import NdviChangeRequest, RiskRequest, SatelliteLatestResponse, SatelliteHistoryResponse
+from app.schemas.satellite import NdviChangeRequest, RiskRequest, SatelliteLatestResponse, SatelliteHistoryResponse, SatelliteAnalysisRequest
 from app.services.earth_engine_service import EarthEngineService
 from app.services.risk_engine import RiskEngine
 from app.services.gemini_service import GeminiService
@@ -12,6 +12,61 @@ from app.config import settings
 
 logger = logging.getLogger("TerraPulseBackend.Satellite")
 router = APIRouter(tags=["Satellite & Risk"])
+
+def validate_and_close_geometry(geometry: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not geometry:
+        return None
+    geom_type = geometry.get("type")
+    coords = geometry.get("coordinates")
+    if geom_type != "Polygon" or not isinstance(coords, list) or len(coords) == 0:
+        raise HTTPException(status_code=400, detail="Invalid geometry structure. Only type 'Polygon' is supported.")
+    
+    ring = coords[0]
+    if not isinstance(ring, list) or len(ring) < 3:
+        raise HTTPException(status_code=400, detail="Polygon must contain at least 3 vertices.")
+        
+    cleaned_ring = []
+    for coord in ring:
+        if not isinstance(coord, list) or len(coord) != 2:
+            raise HTTPException(status_code=400, detail="Each coordinate must be a [longitude, latitude] pair.")
+        
+        lng, lat = coord[0], coord[1]
+        if lng is None or lat is None:
+            raise HTTPException(status_code=400, detail="Coordinates cannot contain null or undefined values.")
+            
+        try:
+            lng_val = float(lng)
+            lat_val = float(lat)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Coordinates must be numeric values.")
+            
+        if lng_val != lng_val or lat_val != lat_val:
+            raise HTTPException(status_code=400, detail="Coordinates cannot contain NaN values.")
+            
+        if not (-180.0 <= lng_val <= 180.0):
+            raise HTTPException(status_code=400, detail=f"Longitude {lng_val} is out of bounds (-180 to 180).")
+        if not (-90.0 <= lat_val <= 90.0):
+            raise HTTPException(status_code=400, detail=f"Latitude {lat_val} is out of bounds (-90 to 90).")
+            
+        cleaned_ring.append([lng_val, lat_val])
+        
+    if len(cleaned_ring) < 3:
+        raise HTTPException(status_code=400, detail="Polygon must contain at least 3 valid vertices.")
+        
+    if cleaned_ring[0] != cleaned_ring[-1]:
+        cleaned_ring.append(cleaned_ring[0])
+        
+    return {
+        "type": "Polygon",
+        "coordinates": [cleaned_ring]
+    }
+
+@router.post("/satellite/analysis", response_model=SatelliteLatestResponse)
+async def post_satellite_analysis(request: SatelliteAnalysisRequest):
+    validated_geom = None
+    if request.geometry:
+        validated_geom = validate_and_close_geometry(request.geometry)
+    return EarthEngineService.get_satellite_data(request.field_id, request.mode, request.date, validated_geom)
 
 @router.get("/satellite/{field_id}", response_model=SatelliteLatestResponse)
 async def get_satellite_data(field_id: str, mode: str = "demo", date: Optional[str] = None):
