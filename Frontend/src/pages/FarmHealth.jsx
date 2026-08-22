@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAsync } from "../hooks/useAsync.js";
 import { farmService, satelliteService, actionService } from "../services/api.js";
 import { FarmMap } from "../components/FarmMap.jsx";
@@ -97,13 +97,19 @@ export default function FarmHealth() {
   // Custom Field Drawing and Map objects state
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [mapObj, setMapObj] = useState(null);
-  const [drawingManagerObj, setDrawingManagerObj] = useState(null);
   const [currentPolygonObj, setCurrentPolygonObj] = useState(null);
   const [customPolygonCoords, setCustomPolygonCoords] = useState(null); // List of [lng, lat] coordinates
   const [polygonArea, setPolygonArea] = useState(0); // in square meters
   const [searchQuery, setSearchQuery] = useState("");
   const [locationError, setLocationError] = useState(null);
   const [demoOverlays, setDemoOverlays] = useState([]);
+
+  // Custom click drawing states and refs
+  const [isDrawing, setIsDrawing] = useState(false);
+  const isDrawingRef = useRef(false);
+  const activePathRef = useRef([]);
+  const activePolylineRef = useRef(null);
+  const activeMarkersRef = useRef([]);
 
   // Advisory states
   const [advisoryLoading, setAdvisoryLoading] = useState(false);
@@ -202,44 +208,44 @@ export default function FarmHealth() {
       console.warn("Places Autocomplete library failed to load:", e);
     }
 
-    // Initialize DrawingManager
-    let drawingManager;
-    try {
-      drawingManager = new google.maps.drawing.DrawingManager({
-        drawingMode: null,
-        drawingControl: false,
-        polygonOptions: {
-          fillColor: "rgba(22, 163, 74, 0.4)",
-          fillOpacity: 0.4,
+    // Custom click-to-draw handler
+    const clickListener = map.addListener("click", (e) => {
+      if (!isDrawingRef.current) return;
+      
+      const latLng = e.latLng;
+      activePathRef.current.push(latLng);
+      
+      if (!activePolylineRef.current) {
+        activePolylineRef.current = new google.maps.Polyline({
           strokeColor: "#16a34a",
           strokeWeight: 3,
-          clickable: true,
-          editable: true,
-          zIndex: 1
+          map: map
+        });
+      }
+      activePolylineRef.current.setPath(activePathRef.current);
+      
+      const marker = new google.maps.Marker({
+        position: latLng,
+        map: map,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 6,
+          fillColor: "#16a34a",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 2
         }
       });
-      drawingManager.setMap(map);
-      setDrawingManagerObj(drawingManager);
-    } catch (e) {
-      console.warn("Google Maps DrawingManager failed to initialize:", e);
-    }
-
-    // Listen for custom polygon drawing completion
-    if (drawingManager) {
-      google.maps.event.addListener(drawingManager, "polygoncomplete", (polygon) => {
-        drawingManager.setDrawingMode(null);
-        setCurrentPolygonObj(polygon);
-        
-        // Extract and validate coordinates
-        updatePolygonData(polygon);
-        
-        // Listen to polygon edits
-        const path = polygon.getPath();
-        google.maps.event.addListener(path, "set_at", () => updatePolygonData(polygon));
-        google.maps.event.addListener(path, "insert_at", () => updatePolygonData(polygon));
-        google.maps.event.addListener(path, "remove_at", () => updatePolygonData(polygon));
-      });
-    }
+      activeMarkersRef.current.push(marker);
+      
+      // Calculate area dynamically in real-time
+      if (activePathRef.current.length >= 3) {
+        try {
+          const areaM2 = google.maps.geometry.spherical.computeArea(activePathRef.current);
+          setPolygonArea(areaM2);
+        } catch (err) {}
+      }
+    });
 
     // Create Predefined/Demo Field Clickable Overlays
     const overlays = [];
@@ -274,6 +280,7 @@ export default function FarmHealth() {
 
     return () => {
       overlays.forEach(o => o.polygon.setMap(null));
+      google.maps.event.removeListener(clickListener);
     };
   }, [mapsLoaded, fieldsQ.data]);
 
@@ -323,15 +330,68 @@ export default function FarmHealth() {
     }
   };
 
+  const cleanupDrawingHelpers = () => {
+    if (activePolylineRef.current) {
+      activePolylineRef.current.setMap(null);
+      activePolylineRef.current = null;
+    }
+    activeMarkersRef.current.forEach(m => m.setMap(null));
+    activeMarkersRef.current = [];
+    activePathRef.current = [];
+  };
+
+  const handleToggleDrawing = () => {
+    if (!mapObj) return;
+    
+    if (!isDrawingRef.current) {
+      setIsDrawing(true);
+      isDrawingRef.current = true;
+      handleClearPolygon();
+      mapObj.setOptions({ draggableCursor: "crosshair" });
+    } else {
+      if (activePathRef.current.length < 3) {
+        setLocationError("Please click at least 3 points on the map to define a valid field boundary.");
+        return;
+      }
+      
+      const polygon = new google.maps.Polygon({
+        paths: activePathRef.current,
+        fillColor: "rgba(22, 163, 74, 0.4)",
+        fillOpacity: 0.4,
+        strokeColor: "#16a34a",
+        strokeWeight: 3,
+        clickable: true,
+        editable: true,
+        map: mapObj
+      });
+      
+      setCurrentPolygonObj(polygon);
+      updatePolygonData(polygon);
+      
+      const path = polygon.getPath();
+      google.maps.event.addListener(path, "set_at", () => updatePolygonData(polygon));
+      google.maps.event.addListener(path, "insert_at", () => updatePolygonData(polygon));
+      google.maps.event.addListener(path, "remove_at", () => updatePolygonData(polygon));
+      
+      cleanupDrawingHelpers();
+      setIsDrawing(false);
+      isDrawingRef.current = false;
+      mapObj.setOptions({ draggableCursor: null });
+    }
+  };
+
   const handleClearPolygon = () => {
+    cleanupDrawingHelpers();
     if (currentPolygonObj) {
       currentPolygonObj.setMap(null);
       setCurrentPolygonObj(null);
     }
     setCustomPolygonCoords(null);
     setPolygonArea(0);
-    if (drawingManagerObj) {
-      drawingManagerObj.setDrawingMode(null);
+    setIsDrawing(false);
+    isDrawingRef.current = false;
+    if (mapObj) {
+      mapObj.setOptions({ draggableCursor: null });
     }
   };
 
@@ -561,20 +621,16 @@ export default function FarmHealth() {
           <div style={{ padding: "0 20px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", gap: 8 }}>
               <Button
-                variant="secondary"
-                onClick={() => {
-                  if (drawingManagerObj) {
-                    drawingManagerObj.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-                  }
-                }}
+                variant={isDrawing ? "primary" : "secondary"}
+                onClick={handleToggleDrawing}
                 disabled={!mapsLoaded}
               >
-                ✏️ Draw Field
+                {isDrawing ? "✅ Complete Drawing" : "✏️ Draw Field"}
               </Button>
               <Button
                 variant="secondary"
                 onClick={handleClearPolygon}
-                disabled={!customPolygonCoords}
+                disabled={!customPolygonCoords && !isDrawing}
               >
                 🗑 Clear
               </Button>
