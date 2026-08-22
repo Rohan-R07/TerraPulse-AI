@@ -88,6 +88,17 @@ export default function FarmHealth() {
   const [layer, setLayer] = useState("ndvi");
   const [date, setDate] = useState(satelliteDates[0]);
   const [analyticsField, setAnalyticsField] = useState("all");
+  const [selectedCrop, setSelectedCrop] = useState("Wheat");
+
+  // Sync selectedCrop with predefined field's crop on load or change
+  useEffect(() => {
+    if (selectedId) {
+      const fieldData = fieldsQ.data?.find((f) => f.id === selectedId);
+      if (fieldData?.crop) {
+        setSelectedCrop(fieldData.crop);
+      }
+    }
+  }, [selectedId, fieldsQ.data]);
 
   // GEE Mode
   const [geeMode, setGeeMode] = useState("demo");
@@ -971,11 +982,13 @@ export default function FarmHealth() {
             <span className="tp-hint">{satelliteSources.find((s) => s.id === source)?.resolution} · {satelliteSources.find((s) => s.id === source)?.revisit} revisit</span>
           </div>
           <div className="tp-field">
-            <label className="tp-label">{t("labels.field")}</label>
-            <select className="tp-select" value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
-              {fieldsQ.data?.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            <label className="tp-label">{t("labels.crop", "Crop")}</label>
+            <select className="tp-select" value={selectedCrop} onChange={(e) => setSelectedCrop(e.target.value)}>
+              {["Wheat", "Rice", "Cotton", "Corn", "Soybeans", "Sugarcane"].map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
-            <span className="tp-hint">{selected?.crop}</span>
+            <span className="tp-hint">Selected crop type for AI analysis</span>
           </div>
           <div className="tp-field">
             <label className="tp-label">{t("labels.layer", "Layer")}</label>
