@@ -38,13 +38,6 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
         msg = parsed.detail || parsed.error?.message || msg;
       } catch (_) {}
       
-      // Clear expired credentials from context on 401 response
-      if (res.status === 401) {
-        try {
-          auth.signOut();
-        } catch (_) {}
-      }
-      
       throw new Error(msg);
     }
 
