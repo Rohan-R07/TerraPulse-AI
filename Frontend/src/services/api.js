@@ -539,6 +539,16 @@ TIMELINE: Year 1: Cover crops in fallow. Year 2: Reduce tillage. Year 3: Localiz
 
 export const userService = {
   async getProfile() {
+    if (!auth.currentUser) {
+      return {
+        uid: "mock-uid",
+        email: "farmer@terrapulse.org",
+        displayName: "Demo Farmer",
+        farmName: "Green Valley Farm",
+        location: "Pune, Maharashtra",
+        acreage: 30
+      };
+    }
     return safeFetch("/users/me", {}, {
       uid: "mock-uid",
       email: "farmer@terrapulse.org",
@@ -549,6 +559,9 @@ export const userService = {
     });
   },
   async updateProfile(data) {
+    if (!auth.currentUser) {
+      return data;
+    }
     return safeFetch("/users/me", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
