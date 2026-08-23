@@ -17,6 +17,24 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
 
+  const loadLocalProfile = () => {
+    const stored = localStorage.getItem("tp-mock-profile");
+    if (stored) {
+      try {
+        setProfile(JSON.parse(stored));
+        return;
+      } catch (_) {}
+    }
+    setProfile({
+      uid: "mock-uid",
+      email: "farmer@terrapulse.org",
+      displayName: "Demo Farmer",
+      farmName: "Green Valley Farm",
+      location: "Pune, Maharashtra",
+      acreage: 30
+    });
+  };
+
   const fetchProfile = async (authToken) => {
     try {
       const res = await fetch(`${BASE_URL}/users/me`, {
@@ -25,9 +43,12 @@ export function AuthProvider({ children }) {
       if (res.ok) {
         const data = await res.json();
         setProfile(data);
+      } else {
+        loadLocalProfile();
       }
     } catch (e) {
       console.warn("Failed to fetch MongoDB profile:", e);
+      loadLocalProfile();
     }
   };
 
@@ -41,7 +62,7 @@ export function AuthProvider({ children }) {
       } else {
         setUser(null);
         setToken(null);
-        setProfile(null);
+        loadLocalProfile();
       }
       setLoading(false);
     });
@@ -95,6 +116,8 @@ export function AuthProvider({ children }) {
   const refreshProfile = async () => {
     if (token) {
       await fetchProfile(token);
+    } else {
+      loadLocalProfile();
     }
   };
 

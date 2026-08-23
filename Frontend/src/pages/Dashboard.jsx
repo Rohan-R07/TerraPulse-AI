@@ -27,7 +27,7 @@ const chartTooltipStyle = {
 
 export default function Dashboard() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const overview = useAsync(() => dashboardService.getOverview(), []);
   const fields = useAsync(() => dashboardService.getFields(), []);
   const ndvi = useAsync(() => dashboardService.getNdviHistory(), []);
@@ -144,7 +144,8 @@ export default function Dashboard() {
                 acreage: profile.data.acreage || 30,
                 displayName: profile.data.displayName || user?.displayName || "Farmer"
               });
-              profile.refetch();
+              await profile.refetch();
+              refreshProfile();
             } catch (err) {
               console.warn("Auto profile update failed:", err);
             }
@@ -165,6 +166,7 @@ export default function Dashboard() {
         displayName: editDisplayName
       });
       await profile.refetch();
+      refreshProfile();
       setIsEditOpen(false);
     } catch (err) {
       setModalError(err.message || "Failed to update profile");
