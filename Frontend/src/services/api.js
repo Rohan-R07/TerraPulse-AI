@@ -37,6 +37,14 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
         const parsed = JSON.parse(errBody);
         msg = parsed.detail || parsed.error?.message || msg;
       } catch (_) {}
+      
+      // Clear expired credentials from context on 401 response
+      if (res.status === 401) {
+        try {
+          auth.signOut();
+        } catch (_) {}
+      }
+      
       throw new Error(msg);
     }
 
@@ -537,40 +545,39 @@ TIMELINE: Year 1: Cover crops in fallow. Year 2: Reduce tillage. Year 3: Localiz
   };
 }
 
+const getFallbackProfile = () => {
+  const stored = localStorage.getItem("tp-mock-profile");
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch (_) {}
+  }
+  return {
+    uid: "mock-uid",
+    email: "farmer@terrapulse.org",
+    displayName: "Demo Farmer",
+    farmName: "Green Valley Farm",
+    location: "Pune, Maharashtra",
+    acreage: 30
+  };
+};
+
 export const userService = {
   async getProfile() {
+    const fallback = getFallbackProfile();
     if (!auth.currentUser) {
-      const stored = localStorage.getItem("tp-mock-profile");
-      if (stored) {
-        try {
-          return JSON.parse(stored);
-        } catch (_) {}
-      }
-      return {
-        uid: "mock-uid",
-        email: "farmer@terrapulse.org",
-        displayName: "Demo Farmer",
-        farmName: "Green Valley Farm",
-        location: "Pune, Maharashtra",
-        acreage: 30
-      };
+      return fallback;
     }
-    return safeFetch("/users/me", {}, {
-      uid: "mock-uid",
-      email: "farmer@terrapulse.org",
-      displayName: "Demo Farmer",
-      farmName: "Green Valley Farm",
-      location: "Pune, Maharashtra",
-      acreage: 30
-    });
+    return safeFetch("/users/me", {}, fallback);
   },
   async updateProfile(data) {
+    // Always save updates to localStorage cache as a robust fallback
+    localStorage.setItem("tp-mock-profile", JSON.stringify({
+      uid: "mock-uid",
+      email: "farmer@terrapulse.org",
+      ...data
+    }));
     if (!auth.currentUser) {
-      localStorage.setItem("tp-mock-profile", JSON.stringify({
-        uid: "mock-uid",
-        email: "farmer@terrapulse.org",
-        ...data
-      }));
       return data;
     }
     return safeFetch("/users/me", {
