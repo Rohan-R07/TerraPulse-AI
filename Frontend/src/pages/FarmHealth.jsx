@@ -846,10 +846,7 @@ export default function FarmHealth() {
               onClick={handleGenerateAdvisory}
               disabled={
                 advisoryLoading || 
-                (geeMode === "live" && (
-                  (!customPolygonCoords && selectedId === null) || 
-                  (!geeData || geeData.image_available === false)
-                ))
+                (geeMode === "live" && !customPolygonCoords && selectedId === null)
               }
               style={{ width: "100%", fontWeight: 700 }}
             >
