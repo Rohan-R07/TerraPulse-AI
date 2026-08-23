@@ -540,6 +540,12 @@ TIMELINE: Year 1: Cover crops in fallow. Year 2: Reduce tillage. Year 3: Localiz
 export const userService = {
   async getProfile() {
     if (!auth.currentUser) {
+      const stored = localStorage.getItem("tp-mock-profile");
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (_) {}
+      }
       return {
         uid: "mock-uid",
         email: "farmer@terrapulse.org",
@@ -560,6 +566,11 @@ export const userService = {
   },
   async updateProfile(data) {
     if (!auth.currentUser) {
+      localStorage.setItem("tp-mock-profile", JSON.stringify({
+        uid: "mock-uid",
+        email: "farmer@terrapulse.org",
+        ...data
+      }));
       return data;
     }
     return safeFetch("/users/me", {
