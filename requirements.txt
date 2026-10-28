@@ -4,7 +4,6 @@ pydantic
 google-generativeai
 google-cloud-speech
 google-cloud-texttospeech
-google-cloud-storage
 firebase-admin
 requests
 python-multipart

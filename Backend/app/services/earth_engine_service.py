@@ -28,21 +28,17 @@ FIELD_GEOMETRIES = {
     }
 }
 
-# Try importing ee, but handle ImportError if package is not installed or auth is not initialized.
+# Try importing ee if installed and explicitly configured with credentials
 ee_available = False
 try:
     import ee
-    project_id = settings.EARTH_ENGINE_PROJECT_ID or os.environ.get("EARTH_ENGINE_PROJECT_ID")
+    project_id = os.environ.get("EARTH_ENGINE_PROJECT_ID")
     if project_id:
-        logger.info(f"Initializing Earth Engine with project: {project_id}")
         ee.Initialize(project=project_id)
-    else:
-        logger.info("Initializing Earth Engine with default project settings")
-        ee.Initialize()
-    ee_available = True
-    logger.info("Google Earth Engine successfully initialized.")
-except Exception as e:
-    logger.warning(f"Google Earth Engine credentials not initialized: {e}. Running in Fallback Mode.")
+        ee_available = True
+        logger.info("Google Earth Engine successfully initialized.")
+except Exception:
+    pass
 
 def mask_s2_clouds(image):
     qa = image.select('QA60')
