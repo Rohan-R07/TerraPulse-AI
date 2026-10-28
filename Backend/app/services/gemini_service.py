@@ -11,12 +11,12 @@ from app.utils.audit import AIAuditor
 logger = logging.getLogger("TerraPulseBackend.Gemini")
 
 ALLOWED_GOOGLE_MODELS = [
-    "google/gemini-2.5-flash:free",
+    "google/gemini-2.0-flash-lite:free",
     "google/gemini-2.5-flash-lite:free",
-    "google/gemma-2-9b-it:free",
-    "openrouter/free",
+    "google/gemini-2.5-flash:free",
     "meta-llama/llama-3-8b-instruct:free",
-    "qwen/qwen-2-7b-instruct:free"
+    "qwen/qwen-2-7b-instruct:free",
+    "openrouter/free"
 ]
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -24,9 +24,8 @@ class GeminiService:
     _initialized = False
 
     @staticmethod
-    def _openrouter_request(messages: list, timeout: int = 15, max_retries: int = 2) -> dict | None:
-        """Send a request to OpenRouter cycling through available Google and free AI models.
-        Returns the parsed JSON response dict on success, or None on failure."""
+    def _openrouter_request(messages: list, timeout: int = 8, max_retries: int = 1, max_tokens: int = 500) -> dict | None:
+        """Send a high-speed request to OpenRouter cycling through the fastest available models."""
         if not settings.OPENROUTER_API_KEY:
             return None
         headers = {
@@ -37,38 +36,35 @@ class GeminiService:
             payload = {
                 "model": model_id,
                 "messages": messages,
-                "max_tokens": 2048
+                "max_tokens": max_tokens
             }
-            for attempt in range(1, max_retries + 1):
-                try:
-                    logger.info(f"Trying OpenRouter model: {model_id} (attempt {attempt}/{max_retries})")
-                    resp = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=timeout)
-                    if resp.status_code == 200:
-                        res_json = resp.json()
-                        choices = res_json.get("choices", [])
-                        if choices:
-                            msg = choices[0].get("message", {})
-                            text = msg.get("content") or msg.get("reasoning") or ""
-                            if text:
-                                logger.info(f"OpenRouter SUCCESS with model: {model_id}")
-                                res_json["used_model"] = model_id
-                                res_json["extracted_text"] = text.strip()
-                                return res_json
-                    elif resp.status_code == 429:
-                        wait = 2 ** attempt
-                        logger.warning(f"OpenRouter 429 on {model_id} (attempt {attempt}/{max_retries}). Retrying in {wait}s...")
-                        time.sleep(wait)
-                        continue
-                    else:
-                        logger.warning(f"OpenRouter [{model_id}] returned [{resp.status_code}]: {resp.text[:200]}")
-                        break
-                except requests.exceptions.Timeout:
-                    logger.error(f"OpenRouter [{model_id}] timed out")
-                    break
-                except Exception as ex:
-                    logger.error(f"OpenRouter [{model_id}] exception: {ex}")
-                    break
-        logger.error("OpenRouter exhausted all free models")
+            try:
+                logger.info(f"Trying fast OpenRouter model: {model_id}")
+                resp = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=timeout)
+                if resp.status_code == 200:
+                    res_json = resp.json()
+                    choices = res_json.get("choices", [])
+                    if choices:
+                        msg = choices[0].get("message", {})
+                        text = msg.get("content") or msg.get("reasoning") or ""
+                        if text:
+                            logger.info(f"OpenRouter SUCCESS with model: {model_id}")
+                            res_json["used_model"] = model_id
+                            res_json["extracted_text"] = text.strip()
+                            return res_json
+                elif resp.status_code == 429:
+                    logger.warning(f"OpenRouter 429 on {model_id}, immediately switching to next model")
+                    continue
+                else:
+                    logger.warning(f"OpenRouter [{model_id}] returned [{resp.status_code}]")
+                    continue
+            except requests.exceptions.Timeout:
+                logger.warning(f"OpenRouter [{model_id}] timed out after {timeout}s, immediately trying next")
+                continue
+            except Exception as ex:
+                logger.error(f"OpenRouter [{model_id}] exception: {ex}")
+                continue
+        logger.error("OpenRouter exhausted all fast free models")
         return None
 
     @staticmethod
@@ -203,7 +199,7 @@ Strict rules:
                     ]
                 }]
                 logger.info("Sending plant image to OpenRouter models")
-                resp_json = cls._openrouter_request(messages, timeout=60)
+                resp_json = cls._openrouter_request(messages, timeout=12, max_tokens=600)
                 if resp_json:
                     used_model = resp_json.get("used_model", "openrouter/free")
                     content = resp_json.get("extracted_text") or resp_json["choices"][0]["message"].get("content") or ""
@@ -291,7 +287,7 @@ Strict rules:
                     ]
                 }]
                 logger.info("Sending soil image to OpenRouter models")
-                resp_json = cls._openrouter_request(messages, timeout=60)
+                resp_json = cls._openrouter_request(messages, timeout=12, max_tokens=600)
                 if resp_json:
                     used_model = resp_json.get("used_model", "openrouter/free")
                     content = resp_json.get("extracted_text") or resp_json["choices"][0]["message"].get("content") or ""
@@ -401,7 +397,7 @@ Strict rules:
             try:
                 or_messages = [{"role": "user", "content": prompt}]
                 logger.info("Sending advisory request to OpenRouter")
-                resp_json = cls._openrouter_request(or_messages, timeout=30)
+                resp_json = cls._openrouter_request(or_messages, timeout=8, max_tokens=500)
                 if resp_json:
                     used_model = resp_json.get("used_model", "google/gemini-2.5-flash:free")
                     content = resp_json.get("extracted_text") or resp_json["choices"][0]["message"].get("content") or ""
@@ -527,7 +523,7 @@ Strict rules:
     @classmethod
     def generate_copilot_response(cls, messages: list, context: dict, lang: str = "en-IN") -> str:
         feature = "copilot_chat"
-        model_name = "gemini-3.6-flash"
+        model_name = "gemini-1.5-flash"
         field_id = context.get("fieldName", "Unknown")
         start_time = time.time()
         
@@ -570,8 +566,8 @@ STRICT RULES:
         or_messages = [{"role": "system", "content": system_instructions}]
         for msg in messages:
             or_messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
-        logger.info("Sending copilot chat to OpenRouter (Gemma 4 models)")
-        resp_json = cls._openrouter_request(or_messages, timeout=30)
+        logger.info("Sending copilot chat to fast OpenRouter models")
+        resp_json = cls._openrouter_request(or_messages, timeout=8, max_tokens=400)
         if resp_json:
             try:
                 used_model = resp_json.get("used_model", "google/gemma-4-31b-it:free")
@@ -612,8 +608,8 @@ STRICT RULES:
 
         prompt_with_lang = f"{prompt}\n{cls._get_lang_instructions(lang, is_json=False)}"
 
-        # --- Try OpenRouter first (with retry on 429) ---
-        resp_json = cls._openrouter_request([{"role": "user", "content": prompt_with_lang}], timeout=30)
+        # --- Try OpenRouter first (with fast timeout) ---
+        resp_json = cls._openrouter_request([{"role": "user", "content": prompt_with_lang}], timeout=8, max_tokens=400)
         if resp_json:
             try:
                 return resp_json["choices"][0]["message"]["content"].strip()
@@ -623,7 +619,7 @@ STRICT RULES:
         # --- Fallback to Gemini SDK ---
         cls._initialize()
         try:
-            model = genai.GenerativeModel("gemini-3.6-flash")
+            model = genai.GenerativeModel("gemini-1.5-flash")
             response = model.generate_content(prompt_with_lang)
             return response.text
         except Exception as e:

@@ -1,10 +1,13 @@
 import logging
 import requests
 import re
+import time
 
 logger = logging.getLogger("TerraPulseBackend.Weather")
 
 class WeatherService:
+    _cache: dict = {}
+
     @staticmethod
     def get_weather_forecast(state: str, district: str) -> dict:
         """Fetch weather by state and district names using the geocoding API."""
@@ -16,6 +19,12 @@ class WeatherService:
         """Parse location (either coordinates or city name) and fetch real-time weather from Open-Meteo."""
         if not location_str:
             location_str = "Pune, Maharashtra"
+        
+        now = time.time()
+        if location_str in WeatherService._cache:
+            entry = WeatherService._cache[location_str]
+            if now - entry["timestamp"] < 300:  # 5 min in-memory cache
+                return entry["data"]
         
         lat, lon = None, None
         
@@ -80,13 +89,15 @@ class WeatherService:
                 }
                 forecast = w_desc.get(code, "Partly cloudy")
                 
-                return {
+                res_data = {
                     "temp": temp,
                     "humidity": humidity,
                     "rainfall": f"{rain} mm",
                     "moisture": moisture_pct,
                     "forecast": f"{forecast}. Currently {temp}°C, {humidity}% humidity, {moisture_pct}% soil moisture."
                 }
+                WeatherService._cache[location_str] = {"timestamp": now, "data": res_data}
+                return res_data
         except Exception as e:
             logger.error(f"Failed to fetch weather from Open-Meteo: {e}")
             
