@@ -3,7 +3,15 @@ import { auth } from "./firebase.js";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://terrapulse-ai-tlo5.onrender.com/api/v1";
 
-// Helper: safe fetch with fallback to mock data
+// In-memory cache for GET requests across page views (TTL: 3 minutes)
+const apiCache = new Map();
+const CACHE_TTL_MS = 3 * 60 * 1000;
+
+export function clearApiCache() {
+  apiCache.clear();
+}
+
+// Helper: safe fetch with fallback to mock data and client cache
 async function safeFetch(endpoint, options = {}, fallbackData = null) {
   const isDemoMode = (localStorage.getItem("tp-app-mode") || "demo") === "demo";
   if (isDemoMode && fallbackData !== null) {
@@ -11,6 +19,18 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
       return fallbackData();
     }
     return fallbackData;
+  }
+
+  const isGet = !options.method || options.method.toUpperCase() === "GET";
+  const activeLang = localStorage.getItem("tp-locale") || "en-IN";
+  const cacheKey = isGet ? `${endpoint}::${activeLang}` : null;
+
+  // Instant response if GET request is already cached in memory
+  if (cacheKey && apiCache.has(cacheKey)) {
+    const entry = apiCache.get(cacheKey);
+    if (Date.now() - entry.timestamp < CACHE_TTL_MS) {
+      return entry.data;
+    }
   }
 
   const headers = { ...options.headers };
@@ -24,7 +44,6 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
   }
 
   try {
-    const activeLang = localStorage.getItem("tp-locale") || "en-IN";
     const separator = endpoint.includes("?") ? "&" : "?";
     const url = `${BASE_URL}${endpoint}${separator}lang=${activeLang}`;
     const res = await fetch(url, { ...options, headers });
@@ -45,7 +64,17 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
     if (textData.trim().startsWith("<")) {
       throw new Error("Backend returned HTML page instead of JSON.");
     }
-    return JSON.parse(textData);
+    const parsedData = JSON.parse(textData);
+
+    // Cache GET results
+    if (cacheKey) {
+      apiCache.set(cacheKey, { timestamp: Date.now(), data: parsedData });
+    } else if (!isGet) {
+      // Invalidate cache on mutations (POST, PUT, PATCH, DELETE) so subsequent GETs reflect changes
+      apiCache.clear();
+    }
+
+    return parsedData;
   } catch (err) {
     console.warn(`Backend API failed for ${endpoint}: ${err.message}. Using fallback data.`);
     if (fallbackData !== null) {
@@ -53,6 +82,19 @@ async function safeFetch(endpoint, options = {}, fallbackData = null) {
     }
     throw err;
   }
+}
+
+// Background pre-warming for common GET endpoints in live mode
+if (typeof window !== "undefined") {
+  setTimeout(() => {
+    if ((localStorage.getItem("tp-app-mode") || "demo") === "live") {
+      dashboardService.getOverview().catch(() => {});
+      dashboardService.getFields().catch(() => {});
+      dashboardService.getNdviHistory().catch(() => {});
+      actionService.listActions().catch(() => {});
+      farmService.getFields().catch(() => {});
+    }
+  }, 1500);
 }
 
 
