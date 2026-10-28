@@ -9,7 +9,7 @@ import {
 import { auth } from "../services/firebase.js";
 
 const AuthContext = createContext(null);
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://terrapulse-ai-fd6r.onrender.com/api/v1";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://terrapulse-ai-tlo5.onrender.com/api/v1";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

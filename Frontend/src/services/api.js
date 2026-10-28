@@ -1,7 +1,7 @@
 import * as mock from "../data/mockData.js";
 import { auth } from "./firebase.js";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://terrapulse-ai-fd6r.onrender.com/api/v1";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://terrapulse-ai-tlo5.onrender.com/api/v1";
 
 // Helper: safe fetch with fallback to mock data
 async function safeFetch(endpoint, options = {}, fallbackData = null) {
