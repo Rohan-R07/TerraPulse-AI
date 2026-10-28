@@ -804,11 +804,6 @@ export default function FarmHealth() {
                 style={{ height: 440, margin: "0 20px 16px", borderRadius: 8, border: "2.5px solid #111827" }} 
               />
             )}
-            
-            {/* Demo Agricultural Area Label */}
-            <div style={{ position: "absolute", top: 12, right: 32, background: "rgba(17, 24, 39, 0.85)", color: "#ffffff", padding: "4px 8px", borderRadius: 4, fontSize: "0.7rem", fontWeight: 700, pointerEvents: "none", zIndex: 10 }}>
-              🌾 Demo agricultural region (Ludhiana, Punjab)
-            </div>
           </div>
 
           {/* Drawing and clear controls */}
