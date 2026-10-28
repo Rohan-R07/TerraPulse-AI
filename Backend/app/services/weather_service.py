@@ -50,7 +50,7 @@ class WeatherService:
             logger.info("Using fallback coordinates (Pune)")
 
         try:
-            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,rain,weather_code"
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,rain,weather_code,soil_moisture_0_to_1cm,soil_moisture_9_to_27cm"
             weather_res = requests.get(url, timeout=10)
             if weather_res.status_code == 200:
                 current = weather_res.json().get("current", {})
@@ -58,6 +58,12 @@ class WeatherService:
                 humidity = current.get("relative_humidity_2m", 35.0)
                 rain = current.get("rain", 0.0)
                 code = current.get("weather_code", 0)
+                
+                # Convert volumetric soil moisture (m³/m³) to percentage
+                sm_surface = current.get("soil_moisture_0_to_1cm")
+                sm_root = current.get("soil_moisture_9_to_27cm")
+                sm_val = sm_root if sm_root is not None else sm_surface
+                moisture_pct = round(float(sm_val) * 100, 1) if sm_val is not None else 32.0
                 
                 # Simple weather code mapping
                 w_desc = {
@@ -78,7 +84,8 @@ class WeatherService:
                     "temp": temp,
                     "humidity": humidity,
                     "rainfall": f"{rain} mm",
-                    "forecast": f"{forecast}. Currently {temp}°C, {humidity}% humidity."
+                    "moisture": moisture_pct,
+                    "forecast": f"{forecast}. Currently {temp}°C, {humidity}% humidity, {moisture_pct}% soil moisture."
                 }
         except Exception as e:
             logger.error(f"Failed to fetch weather from Open-Meteo: {e}")
@@ -87,5 +94,6 @@ class WeatherService:
             "temp": 28.0,
             "humidity": 35.0,
             "rainfall": "12 mm",
+            "moisture": 32.0,
             "forecast": "Partly cloudy"
         }

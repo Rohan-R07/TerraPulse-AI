@@ -12,6 +12,7 @@ class Settings(BaseModel):
     FIREBASE_SERVICE_ACCOUNT: str = os.environ.get("FIREBASE_SERVICE_ACCOUNT", "")
     PROJECT_ID: str = os.environ.get("PROJECT_ID", "terrapulse-ai")
     EARTH_ENGINE_PROJECT_ID: str = os.environ.get("EARTH_ENGINE_PROJECT_ID", "")
+    AGROMONITORING_API_KEY: str = os.environ.get("AGROMONITORING_API_KEY", "169d1a5af3dd151c56cf525dcde4c21b")
     MONGODB_URI: str = os.environ.get("MONGODB_URI", "")
     PORT: int = int(os.environ.get("PORT", "8000"))
 
