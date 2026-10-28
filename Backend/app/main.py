@@ -63,8 +63,8 @@ def create_app() -> FastAPI:
             }
         )
 
-    # Root Health and Discovery Endpoint
-    @app.get("/")
+    # Root Health and Discovery Endpoint (Supports GET and HEAD for Uptime monitors)
+    @app.api_route("/", methods=["GET", "HEAD"])
     async def root():
         return {
             "name": "TerraPulse AI Agronomic Intelligence Backend",
