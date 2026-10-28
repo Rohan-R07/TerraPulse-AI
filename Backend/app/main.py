@@ -63,6 +63,17 @@ def create_app() -> FastAPI:
             }
         )
 
+    # Root Health and Discovery Endpoint
+    @app.get("/")
+    async def root():
+        return {
+            "name": "TerraPulse AI Agronomic Intelligence Backend",
+            "status": "online",
+            "version": "1.0.0",
+            "docs": "/docs",
+            "health": "/api/v1/health"
+        }
+
     # Include Versioned Routers under /api/v1
     app.include_router(health.router, prefix="/api/v1")
     app.include_router(dashboard.router, prefix="/api/v1")
